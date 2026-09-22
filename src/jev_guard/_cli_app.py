@@ -14,7 +14,7 @@ from typing import Annotated, Any, ParamSpec, TypeVar
 import typer
 from rich.console import Console
 from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn
-from rich.table import Table
+from rich.table import Column, Table
 
 from jev_guard import __version__
 from jev_guard.errors import ConfigurationError, JevGuardError, PolicyError
@@ -52,8 +52,10 @@ app = typer.Typer(
 policy_app = typer.Typer(help="List, show, and validate policies.", no_args_is_help=True)
 app.add_typer(policy_app, name="policy")
 
-out = Console()
-err = Console(stderr=True)
+# soft_wrap: never insert hard line breaks into messages. Rich otherwise wraps at 80 columns
+# when not writing to a terminal (CI, pipes, log files), splitting paths and error lines.
+out = Console(soft_wrap=True)
+err = Console(stderr=True, soft_wrap=True)
 _state = {"debug": False}
 
 P = ParamSpec("P")
@@ -412,7 +414,11 @@ def _print_eval_summary(report: dict[str, Any]) -> None:
 @friendly
 def policy_list() -> None:
     """List the builtin policies."""
-    table = Table("name", "description", "input Qs", "output Qs")
+    table = Table("description", "input Qs", "output Qs")
+    # Names must stay readable in narrow terminals; descriptions wrap instead.
+    table.columns.insert(
+        0, Column("name", no_wrap=True, min_width=len(max(BUILTIN_POLICIES, key=len)))
+    )
     for name in BUILTIN_POLICIES:
         p = Policy.from_builtin(name)
         table.add_row(name, p.description, str(len(p.input)), str(len(p.output)))
