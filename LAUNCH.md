@@ -8,6 +8,11 @@ accuracy number that didn't come out of `jev-guard eval` on your key.
 - [ ] Get a TypeSafe key, then run `JEV_GUARD_ALLOW_LIVE=1 pytest -m integration` (~$0.0001).
 - [ ] Run `jev-guard eval --out eval.html` (~$0.001). Note flagged precision/recall and the
       per-question numbers. Fix any question wording that clearly underperforms, re-run.
+- [ ] Run the head-to-head benchmark: `python -m benchmarks.run --run --max-cost 0.50` (needs
+      TYPESAFE_API_KEY, plus ANTHROPIC_API_KEY for the LLM judge; `pip install llm-guard` for
+      the local classifier). Commit `benchmarks/results/`. This table is the headline of every
+      launch post; lead with it only if jev-guard actually wins on detection + cost, and
+      say plainly where it doesn't.
 - [ ] Replace the provisional minimums in `src/jev_guard/eval/datasets/manifest.json` with
       measured values minus ~0.05, set `"provisional": false`, commit.
 - [ ] Put the measured numbers in README ("Not a silver bullet" bullet about benchmarks,

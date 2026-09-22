@@ -66,7 +66,14 @@ Issues = "https://github.com/rudra72r/jev-guard/issues"
 path = "src/jev_guard/__init__.py"  # single source of truth for the version
 
 [tool.hatch.build.targets.sdist]
-exclude = ["/.github", "/.venv", "SPEC.md", "REALITY_REPORT.md", "LAUNCH.md"]
+exclude = [
+    "/.github",
+    "/.venv",
+    "/benchmarks/.cache",
+    "SPEC.md",
+    "REALITY_REPORT.md",
+    "LAUNCH.md",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/jev_guard"]
@@ -84,6 +91,7 @@ select = ["E", "F", "I", "N", "UP", "B", "SIM", "ARG", "PL"]
 # Callback signatures are fixed by LangChain's BaseCallbackHandler interface.
 "src/jev_guard/integrations/langchain_cb.py" = ["ARG002"]
 "src/jev_guard/integrations/litellm_proxy.py" = ["ARG002"]  # LiteLLM hook signatures
+"benchmarks/detectors.py" = ["ARG002"]  # every detector implements the same protocol
 # Typer commands declare every CLI option as a parameter.
 "src/jev_guard/_cli_app.py" = ["PLR0913", "PLR0917"]
 # Golden samples are long natural-language strings; wrapping them hurts readability.
@@ -96,12 +104,12 @@ select = ["E", "F", "I", "N", "UP", "B", "SIM", "ARG", "PL"]
 [tool.mypy]
 python_version = "3.10"
 strict = true
-files = ["src"]
+files = ["src", "benchmarks"]
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
 # LiteLLM is an optional runtime dependency of the proxy hook and isn't installed in CI.
-module = ["litellm", "litellm.*"]
+module = ["litellm", "litellm.*", "anthropic", "anthropic.*", "llm_guard", "llm_guard.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
@@ -111,6 +119,7 @@ disallow_untyped_defs = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]  # so tests can import the top-level benchmarks package
 asyncio_mode = "auto"
 addopts = "--strict-markers"
 markers = [

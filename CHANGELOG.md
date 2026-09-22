@@ -42,6 +42,9 @@ First release.
   across several messages; system prompts are never sent.
 - `jev-guard hook claude-code`: a Claude Code PreToolUse / PostToolUse hook (blocks, asks for
   review, or stays silent), failing open or closed.
+- A benchmark harness (`python -m benchmarks.run`) comparing jev-guard with a regex
+  baseline, an LLM judge, and LLM Guard on the golden set and three public, openly licensed
+  prompt-injection datasets. Free by default, cost-capped with `--run`.
 - `SECURITY.md`, `CONTRIBUTING.md`, and issue templates, including one for reporting missed
   attacks and false alarms.
 - A 100-sample golden eval dataset (50 jailbreaks across 9 attack patterns, 30 clean

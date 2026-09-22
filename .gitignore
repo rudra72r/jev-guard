@@ -12,6 +12,9 @@ venv/
 build/
 dist/
 
+# Benchmark download cache (results/ is committed once numbers are real)
+benchmarks/.cache/
+
 # Tooling
 .pytest_cache/
 .mypy_cache/
