@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "jev-guard"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Fast, cheap guardrails for LLM apps, powered by TypeSafe's Jev model."
 readme = "README.md"
 license = "MIT"
@@ -36,6 +36,8 @@ langchain = ["langchain-core>=0.3"]
 anthropic = ["anthropic>=0.40"]
 openai = ["openai>=1.0"]
 all = ["jev-guard[otel,cli,langchain,anthropic,openai]"]
+# MkDocs 2.0 drops plugin/theme support that mkdocs-material relies on.
+docs = ["mkdocs>=1.6,<2", "mkdocs-material>=9.5,<10"]
 dev = [
     "pytest>=8",
     "pytest-asyncio>=0.24",
@@ -60,6 +62,12 @@ Homepage = "https://github.com/rudra72r/jev-guard"
 Repository = "https://github.com/rudra72r/jev-guard"
 Issues = "https://github.com/rudra72r/jev-guard/issues"
 
+[tool.hatch.version]
+path = "src/jev_guard/__init__.py"  # single source of truth for the version
+
+[tool.hatch.build.targets.sdist]
+exclude = ["/.github", "/.venv", "SPEC.md", "REALITY_REPORT.md", "LAUNCH.md"]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/jev_guard"]
 
@@ -75,6 +83,7 @@ select = ["E", "F", "I", "N", "UP", "B", "SIM", "ARG", "PL"]
 "tests/**" = ["PLR2004", "ARG", "PLR0913", "PLR0917"]
 # Callback signatures are fixed by LangChain's BaseCallbackHandler interface.
 "src/jev_guard/integrations/langchain_cb.py" = ["ARG002"]
+"src/jev_guard/integrations/litellm_proxy.py" = ["ARG002"]  # LiteLLM hook signatures
 # Typer commands declare every CLI option as a parameter.
 "src/jev_guard/_cli_app.py" = ["PLR0913", "PLR0917"]
 # Golden samples are long natural-language strings; wrapping them hurts readability.
@@ -89,6 +98,11 @@ python_version = "3.10"
 strict = true
 files = ["src"]
 plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+# LiteLLM is an optional runtime dependency of the proxy hook and isn't installed in CI.
+module = ["litellm", "litellm.*"]
+ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "tests.*"

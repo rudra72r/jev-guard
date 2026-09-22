@@ -1,0 +1,52 @@
+site_name: jev-guard
+site_description: Fast, cheap guardrails for LLM apps, powered by TypeSafe's Jev model.
+site_url: https://rudra72r.github.io/jev-guard/
+repo_url: https://github.com/rudra72r/jev-guard
+repo_name: rudra72r/jev-guard
+edit_uri: edit/main/docs/
+copyright: MIT License © 2026 Rudra
+
+theme:
+  name: material
+  features:
+    - content.code.copy
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight
+  - pymdownx.superfences
+
+nav:
+  - Home: index.md
+  - Quickstart: quickstart.md
+  - Guide:
+      - Policies: policies.md
+      - Streaming: streaming.md
+      - Telemetry: telemetry.md
+      - PII redaction: redaction.md
+      - Command line: cli.md
+      - Cost: cost.md
+  - Recipes:
+      - Guarding a Claude Code agent: recipes/claude-code-agent.md
+      - RAG grounding checks: recipes/rag-grounding.md
+      - Batch scanning Langfuse traces: recipes/langfuse-batch-scan.md
+      - Custom policies: recipes/custom-policies.md
+      - Deploying behind LiteLLM proxy: recipes/litellm-proxy.md
+  - FAQ: faq.md

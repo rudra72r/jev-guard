@@ -28,3 +28,31 @@ jobs:
       # No TYPESAFE_API_KEY exists in CI on purpose: live Jev tests always skip here,
       # so CI can never spend money on anyone's account.
       - run: pytest -m "not integration" --cov --cov-report=term-missing --cov-fail-under=80
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[docs]"
+      - run: mkdocs build --strict
+
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install hatch twine
+      - run: hatch build
+      - run: twine check --strict dist/*
+      # A plain install (no extras) must import and give the CLI install hint.
+      - run: |
+          python -m venv /tmp/clean
+          /tmp/clean/bin/pip install dist/*.whl
+          /tmp/clean/bin/python -c "import jev_guard; print(jev_guard.__version__)"
+          /tmp/clean/bin/jev-guard --help 2>&1 | grep 'pip install "jev-guard\[cli\]"'
