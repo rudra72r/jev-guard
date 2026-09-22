@@ -44,6 +44,7 @@ dev = [
     "mypy>=1.11",
     "hatch>=1.12",
     "types-PyYAML",
+    "langchain-core>=0.3",  # needed to type-check and test the LangChain callback
 ]
 
 [project.urls]
@@ -64,6 +65,10 @@ select = ["E", "F", "I", "N", "UP", "B", "SIM", "ARG", "PL"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["PLR2004", "ARG", "PLR0913"]
+# Callback signatures are fixed by LangChain's BaseCallbackHandler interface.
+"src/jev_guard/integrations/langchain_cb.py" = ["ARG002"]
+# Numbered file names are intentional; framework callbacks fix some signatures.
+"examples/**" = ["PLR2004", "N999", "ARG002"]
 
 [tool.mypy]
 python_version = "3.10"

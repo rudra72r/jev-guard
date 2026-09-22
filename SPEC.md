@@ -145,9 +145,11 @@ from jev_guard import Guard, Policy, Verdict, Action
 guard = Guard(policy="writing_app")
 
 # 2. Construct from a Policy object (Priya's path)
-guard = Guard(policy=Policy.from_builtin("support_agent").override(
-    thresholds={"is_prompt_injection": 0.9},
-))
+guard = Guard(
+    policy=Policy.from_builtin("support_agent").override(
+        thresholds={"is_prompt_injection": 0.9},
+    )
+)
 
 # 3. Construct from a YAML file (Marcus's path)
 guard = Guard(policy="./policies/strict.yaml")
@@ -160,7 +162,7 @@ if v.blocked:
 v: Verdict = guard.check_output(
     user_message,
     llm_response,
-    context=retrieved_docs,   # optional, for RAG grounding checks
+    context=retrieved_docs,  # optional, for RAG grounding checks
 )
 
 # --- Async checks (identical signatures) ---
@@ -169,19 +171,22 @@ v = await guard.acheck_output(user_message, llm_response, context=None)
 
 # --- Streaming (buffer-and-check strategy; documented tradeoff) ---
 async for token in guard.astream_check(llm_stream, user_message):
-    yield token   # jev-guard yields tokens until it decides to cut the stream
+    yield token  # jev-guard yields tokens until it decides to cut the stream
 
 # --- Decorator (Alex's path) ---
 from jev_guard.integrations.openai_sdk import guarded
+
 
 @guarded(policy="writing_app")
 def ask_llm(prompt: str) -> str:
     return openai_client.chat.completions.create(...).choices[0].message.content
 
+
 # --- Context manager for grouped checks with shared telemetry ---
 with Guard(policy="rag") as g:
     v_in = g.check_input(query)
-    if v_in.blocked: return
+    if v_in.blocked:
+        return
     answer = call_llm(query)
     v_out = g.check_output(query, answer, context=docs)
 ```
@@ -318,6 +323,7 @@ If OpenTelemetry isn't installed, `setup_telemetry()` prints a helpful "pip inst
 
 ```python
 from jev_guard import redact
+
 clean_text, found = redact(text, level="strict")
 # found: list[{"type": "email"|"phone"|"ssn"|"credit_card"|"custom", "span": (start,end), "value": "***"}]
 ```

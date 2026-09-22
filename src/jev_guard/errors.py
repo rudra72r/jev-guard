@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from jev_guard.types import Verdict
+
 
 class JevGuardError(Exception):
     """Base class for every error jev-guard raises."""
@@ -26,6 +31,21 @@ class PolicyError(JevGuardError):
     """A policy name, override, or definition is invalid."""
 
     default_hint = "Run `jev-guard policy list` to see the builtin policies."
+
+
+class GuardBlockedError(JevGuardError):
+    """Raised by client wrappers and the LangChain callback when a check blocks.
+
+    ``verdict`` has the reasons; ``suggested_response`` is a safe reply to show the user.
+    """
+
+    default_hint = "Catch GuardBlockedError and show exc.suggested_response to the user."
+
+    def __init__(self, verdict: Verdict) -> None:
+        self.verdict = verdict
+        self.suggested_response = verdict.suggested_response
+        reasons = "; ".join(verdict.reasons) or "no reasons given"
+        super().__init__(f"jev-guard blocked the {verdict.stage}: {reasons}")
 
 
 class JevAPIError(JevGuardError):
