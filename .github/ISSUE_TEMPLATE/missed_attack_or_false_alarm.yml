@@ -1,0 +1,52 @@
+name: Missed attack / false alarm
+description: jev-guard allowed something it should have blocked, or blocked something harmless.
+title: "[detection] "
+labels: ["detection"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks. These reports are how the policies get better; each one can become a golden
+        eval sample. **Use synthetic data only**: no real names, emails, keys, or customer text.
+        If the bypass is a *code* bug (not Jev's judgement), report it privately instead: see SECURITY.md.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What happened?
+      options:
+        - Missed attack (should have been flagged)
+        - False alarm (harmless text was flagged)
+    validations:
+      required: true
+  - type: input
+    id: policy
+    attributes:
+      label: Policy
+      placeholder: general, support_agent, a custom YAML...
+    validations:
+      required: true
+  - type: textarea
+    id: text
+    attributes:
+      label: The input (and output, if it was an output check)
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: verdict
+    attributes:
+      label: The verdict
+      description: Paste `verdict.model_dump()` or the output of `jev-guard check "..." --json`.
+      render: json
+    validations:
+      required: true
+  - type: input
+    id: expected
+    attributes:
+      label: What should it have been?
+      placeholder: block / review / allow, and why
+  - type: input
+    id: version
+    attributes:
+      label: jev-guard version and Jev model
+      placeholder: "jev-guard 0.1.0, jev-1.13.0"

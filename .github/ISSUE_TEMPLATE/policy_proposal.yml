@@ -1,0 +1,22 @@
+name: Policy proposal
+description: Suggest a new builtin policy or a change to an existing one.
+labels: ["policy"]
+body:
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Use case
+      description: Who runs this kind of app, and what goes wrong without a guard?
+    validations:
+      required: true
+  - type: textarea
+    id: questions
+    attributes:
+      label: Proposed questions
+      description: A YAML sketch is ideal (`jev-guard policy show general` is a good template).
+      render: yaml
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Labelled examples or `jev-guard eval` / `scan` results, if you have them.
