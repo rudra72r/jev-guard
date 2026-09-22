@@ -6,6 +6,8 @@ version: 1.0.0
 description: 'Customer support: blocks legal/medical advice and SLA promises.'
 review_threshold: 1.0
 block_threshold: null
+stream_strategy: buffer
+stream_check_every: 40
 default_suggested_response: Sorry, I can't help with that.
 suggested_responses:
   is_prompt_injection: I can only help with questions about your account or order.

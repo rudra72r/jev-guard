@@ -25,7 +25,7 @@ import operator
 import os
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
@@ -127,6 +127,11 @@ class Policy(BaseModel):
     default_suggested_response: str | None = "Sorry, I can't help with that."
     # Builtin whose output questions are used when check_output gets no context (see rag).
     context_fallback: str | None = None
+    # Streaming: "buffer" holds chunks back until checked (safe, adds latency); "rollback"
+    # streams immediately and emits a retract marker if a later check blocks (keeps TTFT).
+    stream_strategy: Literal["buffer", "rollback"] = "buffer"
+    # Text-bearing chunks (roughly tokens) between output checks while streaming.
+    stream_check_every: int = Field(default=40, ge=1)
 
     @classmethod
     def __pydantic_init_subclass__(cls, **kwargs: Any) -> None:

@@ -256,12 +256,12 @@ def test_wrap_openai_is_idempotent(fake_jev):
     assert client.chat.completions.create is first
 
 
-def test_wrap_openai_stream_checks_input_only(fake_jev, caplog):
+def test_wrap_openai_stream_returns_checked_stream(fake_jev):
+    """Streaming wrappers are covered in depth in test_streaming.py."""
     client = wrap_openai(fake_openai())
-    with caplog.at_level(logging.WARNING, logger="jev_guard"):
-        client.chat.completions.create(model="m", messages=MESSAGES, stream=True)
-    assert len(fake_jev.calls) == 1
-    assert "not output-checked" in caplog.text
+    stream = client.chat.completions.create(model="m", messages=MESSAGES, stream=True)
+    assert type(stream).__name__ == "CheckedStream"
+    assert len(fake_jev.calls) == 1  # input checked; output is checked as chunks are read
 
 
 def test_wrap_openai_responses_api(fake_jev):
@@ -280,14 +280,14 @@ def test_wrap_openai_handles_empty_choices(fake_jev):
     assert len(fake_jev.calls) == 1  # empty reply is skipped, not sent to Jev
 
 
-async def test_wrap_async_openai(fake_jev, caplog):
+async def test_wrap_async_openai(fake_jev):
     completions = FakeAsyncCompletions()
     client = wrap_openai(fake_openai(completions))
     response = await client.chat.completions.create(model="m", messages=MESSAGES)
     assert response.choices[0].message.content == "Your order ships Monday."
     assert len(fake_jev.calls) == 2
-    with caplog.at_level(logging.WARNING, logger="jev_guard"):
-        await client.chat.completions.create(model="m", messages=MESSAGES, stream=True)
+    stream = await client.chat.completions.create(model="m", messages=MESSAGES, stream=True)
+    assert type(stream).__name__ == "AsyncCheckedStream"
     assert len(fake_jev.calls) == 3
     fake_jev.noul("is_prompt_injection", 0.99)
     with pytest.raises(GuardBlockedError):

@@ -6,6 +6,8 @@ version: 1.0.0
 description: 'Default guardrails: prompt injection, malicious intent, PII, answer quality.'
 review_threshold: 1.0
 block_threshold: null
+stream_strategy: buffer
+stream_check_every: 40
 default_suggested_response: Sorry, I can't help with that.
 suggested_responses:
   is_prompt_injection: I can't change how I've been set up, but I'm happy to help with your question.

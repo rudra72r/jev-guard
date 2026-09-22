@@ -7,8 +7,9 @@
     client.chat.completions.create(model=..., messages=[...])  # raises GuardBlockedError on block
 
 Covers ``chat.completions.create`` and ``responses.create`` on both ``OpenAI`` and
-``AsyncOpenAI`` (openai>=1.0). With ``stream=True`` only the input is checked; see
-``Guard.astream_check`` for streamed output.
+``AsyncOpenAI`` (openai>=1.0). With ``stream=True`` you get the SDK's chunk objects back,
+output-checked with the policy's streaming strategy (buffer-and-check by default); a block
+raises ``GuardBlockedError`` mid-iteration.
 """
 
 from __future__ import annotations

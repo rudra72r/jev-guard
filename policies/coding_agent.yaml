@@ -6,6 +6,8 @@ version: 1.0.0
 description: 'Coding agents: blocks destructive commands and leaked secrets.'
 review_threshold: 1.0
 block_threshold: 3.0
+stream_strategy: buffer
+stream_check_every: 40
 default_suggested_response: This action was blocked by the safety policy.
 suggested_responses:
   contains_destructive_command: This would delete or overwrite data, so I won't run it automatically.

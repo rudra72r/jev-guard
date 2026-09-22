@@ -7,6 +7,8 @@ description: 'RAG answers: checks grounding, hallucination, and contradiction.'
 review_threshold: 1.0
 block_threshold: 3.0
 context_fallback: general
+stream_strategy: buffer
+stream_check_every: 40
 default_suggested_response: I couldn't find a reliable answer to that in the documents I have.
 suggested_responses:
   is_prompt_injection: I can only answer questions about the documents I have.

@@ -133,6 +133,8 @@ def dump_policy(policy: Policy) -> str:
     }
     if policy.context_fallback is not None:
         data["context_fallback"] = policy.context_fallback
+    data["stream_strategy"] = policy.stream_strategy
+    data["stream_check_every"] = policy.stream_check_every
     data["default_suggested_response"] = policy.default_suggested_response
     if policy.suggested_responses:
         data["suggested_responses"] = dict(policy.suggested_responses)

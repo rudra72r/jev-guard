@@ -9,11 +9,12 @@ from __future__ import annotations
 import functools
 import inspect
 import logging
-from collections.abc import Awaitable, Callable, Iterable, Mapping
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterable, Iterator, Mapping
 from typing import Any, ParamSpec, TypeVar, cast, overload
 
 from jev_guard.errors import GuardBlockedError
 from jev_guard.guard import Guard
+from jev_guard.guards.streaming import achecked_stream, checked_stream
 from jev_guard.policies.base import Policy
 from jev_guard.types import Verdict
 
@@ -161,11 +162,86 @@ def enforce(verdict: Verdict) -> Verdict:
     return verdict
 
 
-def warn_stream_unchecked() -> None:
-    logger.warning(
-        "jev-guard: stream=True responses are not output-checked by the client wrapper; "
-        "use Guard.astream_check for streamed output (the input was still checked)"
-    )
+class CheckedStream:
+    """A sync SDK stream whose chunks are output-checked. Other attributes pass through.
+
+    Iterating yields the original chunk objects; a block raises ``GuardBlockedError`` after
+    the chunks that were already released (none of them unchecked in buffer mode).
+    """
+
+    def __init__(self, stream: Any, guard: Guard, prompt: str) -> None:
+        check, _, policy = guard._stream_checkers(prompt)
+        self._stream = stream
+        self._chunks = checked_stream(
+            stream,
+            check,
+            strategy=policy.stream_strategy,
+            every=policy.stream_check_every,
+            emit="raw",
+            on_cut="raise",
+        )
+
+    def __iter__(self) -> Iterator[Any]:
+        return self._chunks
+
+    def __next__(self) -> Any:
+        return next(self._chunks)
+
+    def __enter__(self) -> CheckedStream:
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        self.close()
+
+    def close(self) -> None:
+        self._chunks.close()
+        close = getattr(self._stream, "close", None)
+        if close is not None:
+            close()
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._stream, name)
+
+
+class AsyncCheckedStream:
+    """Async ``CheckedStream`` for ``AsyncOpenAI`` / ``AsyncAnthropic`` streams."""
+
+    def __init__(self, stream: Any, guard: Guard, prompt: str) -> None:
+        _, acheck, policy = guard._stream_checkers(prompt)
+        self._stream = stream
+        self._chunks = achecked_stream(
+            stream,
+            acheck,
+            strategy=policy.stream_strategy,
+            every=policy.stream_check_every,
+            emit="raw",
+            on_cut="raise",
+        )
+
+    def __aiter__(self) -> AsyncIterator[Any]:
+        return self._chunks
+
+    async def __anext__(self) -> Any:
+        return await self._chunks.__anext__()
+
+    async def __aenter__(self) -> AsyncCheckedStream:
+        return self
+
+    async def __aexit__(self, *exc: object) -> None:
+        await self.close()
+
+    async def close(self) -> None:
+        await self._chunks.aclose()
+        for name in ("aclose", "close"):
+            close = getattr(self._stream, name, None)
+            if close is not None:
+                result = close()
+                if inspect.isawaitable(result):
+                    await result
+                return
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._stream, name)
 
 
 _WRAPPED = "__jev_guard_wrapped__"
@@ -190,8 +266,7 @@ def patch_create(
             enforce(await guard.acheck_input(prompt))
             response = await original(*args, **kwargs)
             if kwargs.get("stream"):
-                warn_stream_unchecked()
-                return response
+                return AsyncCheckedStream(response, guard, prompt)
             enforce(await guard.acheck_output(prompt, reply_of(response)))
             return response
 
@@ -205,8 +280,7 @@ def patch_create(
         enforce(guard.check_input(prompt))
         response = original(*args, **kwargs)
         if kwargs.get("stream"):
-            warn_stream_unchecked()
-            return response
+            return CheckedStream(response, guard, prompt)
         enforce(guard.check_output(prompt, reply_of(response)))
         return response
 

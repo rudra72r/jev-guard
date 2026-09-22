@@ -4,15 +4,17 @@ from __future__ import annotations
 
 import logging
 import os
-from collections.abc import Callable, Mapping
+from collections.abc import AsyncIterable, AsyncIterator, Callable, Iterable, Mapping
 from types import TracebackType
 from typing import Any
 
+from jev_guard import telemetry
 from jev_guard.client import JevBackend, JevClient, JevResult
 from jev_guard.cost import estimate_tokens
 from jev_guard.errors import PolicyError
 from jev_guard.guards.input_guard import input_state
 from jev_guard.guards.output_guard import Context, output_state
+from jev_guard.guards.streaming import AsyncCheck, SyncCheck, achecked_stream
 from jev_guard.policies.base import Policy
 from jev_guard.types import GuardStage, QuestionSpec, Verdict
 
@@ -48,6 +50,8 @@ class Guard:
     def __init__(self, policy: str | Policy | None = None) -> None:
         self.policy = _resolve_policy(policy)
         self._backend: JevBackend | None = None
+        self._session: telemetry.Session | None = None
+        telemetry.auto_setup()
 
     def _get_backend(self) -> JevBackend:
         if self._backend is None:
@@ -79,9 +83,47 @@ class Guard:
         policy = self._output_policy(context)
         return await self._arun("output", state, _is_blank(llm_response), policy)
 
+    # --- streaming --------------------------------------------------------------------------
+
+    async def astream_check(
+        self, llm_stream: AsyncIterable[Any] | Iterable[Any], user_message: str
+    ) -> AsyncIterator[str]:
+        """Yield the text of a streamed LLM response, checking it as it arrives.
+
+        ``llm_stream`` may yield strings or raw OpenAI / Anthropic / LangChain chunks. The
+        policy's ``stream_strategy`` picks buffer-and-check (default) or rollback. If a check
+        blocks, the last item yielded is a ``StreamCut`` (a ``str`` with ``.verdict`` and
+        ``.retract``) and the upstream stream is closed. See ``jev_guard.guards.streaming``.
+        """
+        _, check, policy = self._stream_checkers(user_message)
+        async for token in achecked_stream(
+            llm_stream,
+            check,
+            strategy=policy.stream_strategy,
+            every=policy.stream_check_every,
+            emit="text",
+            on_cut="marker",
+        ):
+            yield token
+
+    def _stream_checkers(self, user_message: str) -> tuple[SyncCheck, AsyncCheck, Policy]:
+        """Output checks for a stream, resolving the policy (and any context warning) once."""
+        policy = self._output_policy(None)
+
+        def check(text: str) -> Verdict:
+            return self._run("output", output_state(user_message, text), _is_blank(text), policy)
+
+        async def acheck(text: str) -> Verdict:
+            state = output_state(user_message, text)
+            return await self._arun("output", state, _is_blank(text), policy)
+
+        return check, acheck, policy
+
     # --- context manager --------------------------------------------------------------------
 
     def __enter__(self) -> Guard:
+        """Group checks under one ``jev_guard.session`` span (when telemetry is on)."""
+        self._session = telemetry.start_session(self.policy)
         return self
 
     def __exit__(
@@ -90,6 +132,8 @@ class Guard:
         exc: BaseException | None,
         tb: TracebackType | None,
     ) -> None:
+        telemetry.end_session(self._session, exc)
+        self._session = None
         if self._backend is not None:
             self._backend.close()
 
@@ -114,8 +158,12 @@ class Guard:
         if blank or not questions:
             return self._skipped(stage, blank)
         wire = _wire(questions)
-        result = self._get_backend().evaluate(state, wire)
-        return self._verdict(policy, stage, result, state, wire)
+        with telemetry.check_span(policy, stage) as span:
+            result = self._get_backend().evaluate(state, wire)
+            verdict = self._verdict(policy, stage, result, state, wire)
+            if span is not None:
+                span.record(verdict, result.model)
+        return verdict
 
     async def _arun(
         self, stage: GuardStage, state: dict[str, Any], blank: bool, policy: Policy | None = None
@@ -125,8 +173,12 @@ class Guard:
         if blank or not questions:
             return self._skipped(stage, blank)
         wire = _wire(questions)
-        result = await self._get_backend().aevaluate(state, wire)
-        return self._verdict(policy, stage, result, state, wire)
+        with telemetry.check_span(policy, stage) as span:
+            result = await self._get_backend().aevaluate(state, wire)
+            verdict = self._verdict(policy, stage, result, state, wire)
+            if span is not None:
+                span.record(verdict, result.model)
+        return verdict
 
     def _verdict(
         self,

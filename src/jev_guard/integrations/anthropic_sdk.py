@@ -6,8 +6,10 @@
     client = wrap_anthropic(Anthropic(), policy="writing_app")
     client.messages.create(model=..., max_tokens=..., messages=[...])  # GuardBlockedError on block
 
-Covers ``messages.create`` on ``Anthropic`` and ``AsyncAnthropic``. With ``stream=True`` only
-the input is checked; see ``Guard.astream_check`` for streamed output.
+Covers ``messages.create`` on ``Anthropic`` and ``AsyncAnthropic``, including ``stream=True``
+(events come back output-checked; a block raises ``GuardBlockedError`` mid-iteration). The
+``messages.stream()`` helper is not wrapped; use ``create(stream=True)`` or
+``Guard.astream_check``.
 """
 
 from __future__ import annotations
