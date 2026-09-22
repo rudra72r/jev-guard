@@ -28,12 +28,15 @@ class QuestionSpec(BaseModel):
     - ``choice``: fires when Jev picks a label in ``flag`` and its confidence compares true
       against ``threshold``.
     - ``score``: fires when the score (in rubric levels, 0 to len(criteria)-1) compares true
-      against ``threshold``. ``risk_when`` says which end of the rubric is the risky one.
+      against ``threshold``.
+
+    ``risk_when`` says which end is risky for nouls and scores: ``"low"`` for questions like
+    "the answer is grounded in the context", where a low value is the bad outcome.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    kind: QuestionKind
+    type: QuestionKind
     instructions: str = Field(min_length=1)
     criteria: dict[str, str] | list[str] | None = None
     severity: Severity = "medium"
@@ -54,9 +57,9 @@ class QuestionSpec(BaseModel):
 
     @model_validator(mode="after")
     def _check_shape(self) -> QuestionSpec:
-        if self.kind == "noul":
+        if self.type == "noul":
             self._check_noul()
-        elif self.kind == "choice":
+        elif self.type == "choice":
             self._check_choice()
         else:
             self._check_score()
@@ -98,7 +101,7 @@ class QuestionSpec(BaseModel):
 
     def to_wire(self) -> dict[str, object]:
         """The question in the dict form the TypeSafe SDK accepts."""
-        wire: dict[str, object] = {"type": self.kind, "instructions": self.instructions}
+        wire: dict[str, object] = {"type": self.type, "instructions": self.instructions}
         if self.criteria is not None:
             wire["criteria"] = self.criteria
         return wire

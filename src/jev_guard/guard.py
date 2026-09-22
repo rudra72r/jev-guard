@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from collections.abc import Callable, Mapping
 from types import TracebackType
@@ -17,6 +18,8 @@ from jev_guard.types import GuardStage, QuestionSpec, Verdict
 
 DEFAULT_POLICY_ENV = "JEV_GUARD_DEFAULT_POLICY"
 
+logger = logging.getLogger("jev_guard")
+
 # Tests replace this to run Guard against a fake Jev. Not part of the public API.
 _backend_factory: Callable[[], JevBackend] = JevClient
 
@@ -27,13 +30,16 @@ def _resolve_policy(policy: str | Policy | None) -> Policy:
     name = policy or os.environ.get(DEFAULT_POLICY_ENV, "").strip() or "general"
     if not isinstance(name, str):
         raise PolicyError(f"policy must be a name or a Policy, got {type(policy).__name__}")
+    if name.lower().endswith((".yaml", ".yml")):
+        return Policy.from_yaml(name)
     return Policy.from_builtin(name)
 
 
 class Guard:
     """Checks user inputs before your LLM call and LLM outputs after it.
 
-    ``policy`` is a builtin name (``"general"``, ``"writing_app"``, ...) or a ``Policy``.
+    ``policy`` is a builtin name (``"general"``, ``"writing_app"``, ...), a path to a
+    ``.yaml`` policy file, or a ``Policy``.
     With no policy, ``JEV_GUARD_DEFAULT_POLICY`` is used, then ``"general"``.
 
     Checks raise ``JevAPIError`` if Jev can't be reached; they never silently allow or block.
@@ -59,7 +65,7 @@ class Guard:
     ) -> Verdict:
         """Check an LLM response. Pass ``context`` (retrieved docs) for grounding checks."""
         state = output_state(user_message, llm_response, context)
-        return self._run("output", state, _is_blank(llm_response))
+        return self._run("output", state, _is_blank(llm_response), self._output_policy(context))
 
     # --- async ------------------------------------------------------------------------------
 
@@ -70,7 +76,8 @@ class Guard:
         self, user_message: str, llm_response: str, context: Context = None
     ) -> Verdict:
         state = output_state(user_message, llm_response, context)
-        return await self._arun("output", state, _is_blank(llm_response))
+        policy = self._output_policy(context)
+        return await self._arun("output", state, _is_blank(llm_response), policy)
 
     # --- context manager --------------------------------------------------------------------
 
@@ -88,24 +95,42 @@ class Guard:
 
     # --- internals --------------------------------------------------------------------------
 
-    def _run(self, stage: GuardStage, state: dict[str, Any], blank: bool) -> Verdict:
-        questions = self.policy.questions_for(stage)
+    def _output_policy(self, context: Context) -> Policy:
+        if context is not None or self.policy.context_fallback is None:
+            return self.policy
+        logger.warning(
+            "jev-guard: policy %r needs context for output checks; none was passed, so "
+            "%r output checks were used instead",
+            self.policy.name,
+            self.policy.context_fallback,
+        )
+        return self.policy.without_context()
+
+    def _run(
+        self, stage: GuardStage, state: dict[str, Any], blank: bool, policy: Policy | None = None
+    ) -> Verdict:
+        policy = policy or self.policy
+        questions = policy.questions_for(stage)
         if blank or not questions:
             return self._skipped(stage, blank)
         wire = _wire(questions)
         result = self._get_backend().evaluate(state, wire)
-        return self._verdict(stage, result, state, wire)
+        return self._verdict(policy, stage, result, state, wire)
 
-    async def _arun(self, stage: GuardStage, state: dict[str, Any], blank: bool) -> Verdict:
-        questions = self.policy.questions_for(stage)
+    async def _arun(
+        self, stage: GuardStage, state: dict[str, Any], blank: bool, policy: Policy | None = None
+    ) -> Verdict:
+        policy = policy or self.policy
+        questions = policy.questions_for(stage)
         if blank or not questions:
             return self._skipped(stage, blank)
         wire = _wire(questions)
         result = await self._get_backend().aevaluate(state, wire)
-        return self._verdict(stage, result, state, wire)
+        return self._verdict(policy, stage, result, state, wire)
 
     def _verdict(
         self,
+        policy: Policy,
         stage: GuardStage,
         result: JevResult,
         state: dict[str, Any],
@@ -114,13 +139,17 @@ class Guard:
         tokens = result.input_tokens
         if tokens is None:  # the API didn't report usage; estimate so cost is never zero
             tokens = estimate_tokens({"state": state, "questions": wire})
-        return self.policy.build_verdict(
+        verdict = policy.build_verdict(
             stage,
             result.answers,
             latency_ms=result.latency_ms,
             input_tokens=tokens,
             model=result.model,
         )
+        if policy is not self.policy:
+            note = f"no context passed: used {self.policy.context_fallback!r} output checks"
+            verdict = verdict.model_copy(update={"reasons": [*verdict.reasons, note]})
+        return verdict
 
     def _skipped(self, stage: GuardStage, blank: bool) -> Verdict:
         why = "nothing to check (empty text)" if blank else f"policy has no {stage} questions"

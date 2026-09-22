@@ -1,0 +1,26 @@
+# Coding agent with production access (real credentials, shared databases, CI).
+# Any single high-severity signal blocks, and destructive/secret checks fire earlier.
+name: coding_agent_prod
+version: 1.0.0
+extends: coding_agent
+description: Coding agent policy for agents that can touch production.
+
+# Each high question weighs 2.0, so 2.0 > 1.5 means one fired high question blocks.
+block_threshold: 1.5
+
+input:
+  contains_destructive_command:
+    threshold: 0.5
+  touches_secrets_or_env:
+    threshold: 0.5
+  network_egress_intent:
+    threshold: 0.5
+  attempts_privilege_escalation:
+    severity: critical      # no sudo for agents in prod
+    threshold: 0.6
+
+output:
+  suggests_destructive_command:
+    threshold: 0.5
+  hardcoded_secret_present:
+    threshold: 0.5

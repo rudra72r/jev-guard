@@ -1,0 +1,20 @@
+# Permissive: only stops clear-cut attacks. For internal tools and trusted users.
+# Nothing is ever sent to review; PII and answer quality are dropped entirely.
+name: permissive
+version: 1.0.0
+extends: general
+description: Blocks only confident prompt injection and malicious intent.
+
+input:
+  is_prompt_injection:
+    threshold: 0.95
+  intent:
+    threshold: 0.95
+  contains_pii: null        # `null` removes an inherited question
+
+output:
+  contains_pii: null
+  matches_user_intent: null
+  is_off_topic:
+    severity: low
+    threshold: 0.9

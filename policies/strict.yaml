@@ -1,0 +1,25 @@
+# Strict: `general` tuned for regulated or high-risk apps.
+# Blocks earlier and turns any two high-severity signals into a block.
+# Expect more false positives: route `review` verdicts to a human queue.
+name: strict
+version: 1.0.0
+extends: general
+description: General policy with lower thresholds and blocking on combined signals.
+
+# Each high question weighs 2.0: one fired -> review, two fired (4.0 > 3.0) -> block.
+block_threshold: 3.0
+
+input:
+  is_prompt_injection:
+    threshold: 0.6
+  intent:
+    threshold: 0.6
+  contains_pii:
+    threshold: 0.4
+
+output:
+  contains_pii:
+    threshold: 0.4
+  is_off_topic:
+    severity: high        # promote from medium: off-topic answers now trigger review
+    threshold: 0.6

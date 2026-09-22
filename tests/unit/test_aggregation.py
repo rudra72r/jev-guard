@@ -11,7 +11,7 @@ from jev_guard.types import JevAnswer, QuestionSpec
 
 def noul(severity: str, threshold: float = 0.5, weight: float | None = None) -> QuestionSpec:
     return QuestionSpec(
-        kind="noul", instructions="x", severity=severity, threshold=threshold, weight=weight
+        type="noul", instructions="x", severity=severity, threshold=threshold, weight=weight
     )
 
 
@@ -99,7 +99,7 @@ def test_mismatched_answer_type_is_treated_as_missing():
 
 def test_choice_risk_uses_flag_probability_even_when_not_chosen():
     spec = QuestionSpec(
-        kind="choice",
+        type="choice",
         instructions="x",
         criteria={"ok": "fine", "bad": "not fine"},
         flag=["bad"],
@@ -116,7 +116,7 @@ def test_choice_risk_uses_flag_probability_even_when_not_chosen():
 
 def test_choice_without_probabilities_falls_back_to_confidence():
     spec = QuestionSpec(
-        kind="choice", instructions="x", criteria={"ok": "", "bad": ""}, flag=["bad"], threshold=0.5
+        type="choice", instructions="x", criteria={"ok": "", "bad": ""}, flag=["bad"], threshold=0.5
     )
     outcome = score_question("q", spec, JevAnswer(type="choice", choice="bad", confidence=0.7))
     assert outcome is not None
@@ -127,10 +127,10 @@ def test_choice_without_probabilities_falls_back_to_confidence():
 def test_score_risk_direction():
     levels = ["a", "b", "c", "d"]
     high_bad = QuestionSpec(
-        kind="score", instructions="x", criteria=levels, threshold=2, comparator=">="
+        type="score", instructions="x", criteria=levels, threshold=2, comparator=">="
     )
     low_bad = QuestionSpec(
-        kind="score",
+        type="score",
         instructions="x",
         criteria=levels,
         threshold=1,
@@ -163,15 +163,15 @@ def test_subclass_with_name_registers_as_builtin():
 @pytest.mark.parametrize(
     ("kwargs", "message"),
     [
-        ({"kind": "noul", "threshold": 1.2}, "between 0 and 1"),
-        ({"kind": "noul", "threshold": 0.5, "criteria": {"maybe": "x"}}, "'true' and/or 'false'"),
-        ({"kind": "choice", "threshold": 0.5}, "mapping of label"),
-        ({"kind": "choice", "threshold": 0.5, "criteria": {"a": "x"}}, "need `flag`"),
-        ({"kind": "choice", "threshold": 0.5, "criteria": {"a": "x"}, "flag": ["z"]}, "not in"),
-        ({"kind": "choice", "threshold": 2, "criteria": {"a": "x"}, "flag": ["a"]}, "between 0"),
-        ({"kind": "score", "threshold": 1}, "ordered list"),
-        ({"kind": "score", "threshold": 0, "criteria": ["only one"]}, "2-10 levels"),
-        ({"kind": "score", "threshold": 5, "criteria": ["a", "b", "c"]}, "between 0 and 2"),
+        ({"type": "noul", "threshold": 1.2}, "between 0 and 1"),
+        ({"type": "noul", "threshold": 0.5, "criteria": {"maybe": "x"}}, "'true' and/or 'false'"),
+        ({"type": "choice", "threshold": 0.5}, "mapping of label"),
+        ({"type": "choice", "threshold": 0.5, "criteria": {"a": "x"}}, "need `flag`"),
+        ({"type": "choice", "threshold": 0.5, "criteria": {"a": "x"}, "flag": ["z"]}, "not in"),
+        ({"type": "choice", "threshold": 2, "criteria": {"a": "x"}, "flag": ["a"]}, "between 0"),
+        ({"type": "score", "threshold": 1}, "ordered list"),
+        ({"type": "score", "threshold": 0, "criteria": ["only one"]}, "2-10 levels"),
+        ({"type": "score", "threshold": 5, "criteria": ["a", "b", "c"]}, "between 0 and 2"),
     ],
 )
 def test_question_spec_validation(kwargs, message):
@@ -182,7 +182,7 @@ def test_question_spec_validation(kwargs, message):
 def test_too_many_choices_rejected():
     criteria = {str(i): "" for i in range(256)}
     with pytest.raises(ValidationError, match="at most 255"):
-        QuestionSpec(kind="choice", instructions="x", criteria=criteria, flag=["0"], threshold=0.5)
+        QuestionSpec(type="choice", instructions="x", criteria=criteria, flag=["0"], threshold=0.5)
 
 
 def test_to_wire_omits_missing_criteria():

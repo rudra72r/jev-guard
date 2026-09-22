@@ -22,6 +22,7 @@ import difflib
 import importlib
 import logging
 import operator
+import os
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
@@ -81,9 +82,10 @@ class Aggregation:
 def score_question(name: str, spec: QuestionSpec, answer: JevAnswer) -> Outcome | None:
     """Turn one Jev answer into an Outcome, or None if the answer doesn't match the question."""
     compare = _COMPARE[spec.comparator]
-    if spec.kind == "noul" and answer.noul is not None:
-        return Outcome(name, spec, answer.noul, answer.noul, compare(answer.noul, spec.threshold))
-    if spec.kind == "choice" and answer.choice is not None:
+    if spec.type == "noul" and answer.noul is not None:
+        risk = answer.noul if spec.risk_when == "high" else 1.0 - answer.noul
+        return Outcome(name, spec, answer.noul, risk, compare(answer.noul, spec.threshold))
+    if spec.type == "choice" and answer.choice is not None:
         confidence = answer.confidence if answer.confidence is not None else 0.0
         probabilities = answer.probabilities or {}
         risk = sum(probabilities.get(label, 0.0) for label in spec.flag)
@@ -91,7 +93,7 @@ def score_question(name: str, spec: QuestionSpec, answer: JevAnswer) -> Outcome 
             risk = confidence
         fired = answer.choice in spec.flag and compare(confidence, spec.threshold)
         return Outcome(name, spec, confidence, min(risk, 1.0), fired, label=answer.choice)
-    if spec.kind == "score" and answer.score is not None:
+    if spec.type == "score" and answer.score is not None:
         position = answer.score / spec.max_level
         risk = position if spec.risk_when == "high" else 1.0 - position
         return Outcome(
@@ -123,6 +125,8 @@ class Policy(BaseModel):
     block_threshold: float | None = Field(default=None, ge=0.0)
     suggested_responses: dict[str, str] = Field(default_factory=dict)
     default_suggested_response: str | None = "Sorry, I can't help with that."
+    # Builtin whose output questions are used when check_output gets no context (see rag).
+    context_fallback: str | None = None
 
     @classmethod
     def __pydantic_init_subclass__(cls, **kwargs: Any) -> None:
@@ -141,6 +145,13 @@ class Policy(BaseModel):
         if policy_cls is None:
             raise PolicyError(f"Unknown policy {name!r}.{_did_you_mean(name, _REGISTRY)}")
         return policy_cls.model_validate({})  # registered subclasses default every field
+
+    @classmethod
+    def from_yaml(cls, path: str | os.PathLike[str]) -> Policy:
+        """Load a policy from a YAML file. Raises PolicyError listing every problem by line."""
+        from jev_guard.policies.loader import load_policy_file  # noqa: PLC0415 (import cycle)
+
+        return load_policy_file(path)
 
     @classmethod
     def available(cls) -> list[str]:
@@ -174,6 +185,17 @@ class Policy(BaseModel):
 
     def questions_for(self, stage: GuardStage) -> dict[str, QuestionSpec]:
         return self.input if stage == "input" else self.output
+
+    def without_context(self) -> Policy:
+        """The policy to use for an output check that got no context.
+
+        Policies whose output questions need retrieved documents (``rag``) name a
+        ``context_fallback`` builtin; its output questions are swapped in. Others are unchanged.
+        """
+        if self.context_fallback is None:
+            return self
+        fallback = Policy.from_builtin(self.context_fallback)
+        return self.model_copy(update={"output": fallback.output, "context_fallback": None})
 
     def aggregate(self, stage: GuardStage, answers: Mapping[str, JevAnswer]) -> Aggregation:
         outcomes: list[Outcome] = []
