@@ -75,6 +75,8 @@ select = ["E", "F", "I", "N", "UP", "B", "SIM", "ARG", "PL"]
 "src/jev_guard/integrations/langchain_cb.py" = ["ARG002"]
 # Typer commands declare every CLI option as a parameter.
 "src/jev_guard/_cli_app.py" = ["PLR0913", "PLR0917"]
+# Golden samples are long natural-language strings; wrapping them hurts readability.
+"scripts/build_golden_dataset.py" = ["E501"]
 # The inline HTML report template has long lines by nature.
 "src/jev_guard/eval/report.py" = ["E501"]
 # Numbered file names are intentional; framework callbacks fix some signatures.

@@ -10,6 +10,7 @@ import json
 from datetime import datetime, timezone
 from typing import Any
 
+from jev_guard.eval.golden import EvalResult, eval_section
 from jev_guard.eval.metrics import Metrics, add_example, worst_action
 from jev_guard.eval.scan import ScanResult
 
@@ -123,8 +124,9 @@ def _md_escape(text: str) -> str:
 
 def render_markdown(report: dict[str, Any]) -> str:
     s = report["summary"]
+    ev = report.get("eval")
     lines = [
-        f"# jev-guard scan: {report['source']}",
+        f"# jev-guard {'eval' if ev else 'scan'}: {report['source']}",
         "",
         f"Policy `{report['policy']['name']}` v{report['policy']['version']} · "
         f"format `{report['format']}` · {report['generated_at']}",
@@ -135,6 +137,12 @@ def render_markdown(report: dict[str, Any]) -> str:
     ]
     if s["budget_exhausted"]:
         lines += ["", f"> Stopped at the cost cap: {s['skipped_budget']} records not checked."]
+    if ev:
+        lines += _markdown_eval_header(ev)
+        if report["metrics"]:
+            lines += _markdown_metrics(report["metrics"], ev["minimums"])
+        lines += _markdown_eval_details(ev)
+        return "\n".join(lines) + "\n"
     lines += ["", "## Actions", "", "| stage | allow | review | block |", "|---|---:|---:|---:|"]
     for stage, counts in report["actions"].items():
         lines.append(f"| {stage} | {counts['allow']} | {counts['review']} | {counts['block']} |")
@@ -163,18 +171,67 @@ def render_markdown(report: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def _markdown_metrics(metrics: dict[str, Any]) -> list[str]:
-    rows = [("flagged (any question)", metrics["flagged"])] + list(metrics["per_question"].items())
+def metric_rows(
+    metrics: dict[str, Any], minimums: dict[str, dict[str, float]] | None = None
+) -> list[dict[str, Any]]:
+    """One row per question (``flagged`` first) with its metrics and any manifest minimums."""
+    minimums = minimums or {}
+    rows = [("flagged", metrics["flagged"]), *metrics["per_question"].items()]
+    return [
+        {
+            "name": "flagged (any question)" if name == "flagged" else name,
+            **m,
+            "minimum": ", ".join(f"{k} ≥ {v:.2f}" for k, v in minimums.get(name, {}).items()),
+        }
+        for name, m in rows
+    ]
+
+
+def _markdown_metrics(
+    metrics: dict[str, Any], minimums: dict[str, dict[str, float]] | None = None
+) -> list[str]:
     lines = [
         "",
         f"## Accuracy on {metrics['labelled']} labelled records",
         "",
-        "| question | precision | recall | F1 | support |",
-        "|---|---:|---:|---:|---:|",
+        "| question | precision | recall | F1 | support | minimum |",
+        "|---|---:|---:|---:|---:|---|",
     ]
     lines += [
-        f"| {name} | {m['precision']:.2f} | {m['recall']:.2f} | {m['f1']:.2f} | {m['support']} |"
-        for name, m in rows
+        f"| {r['name']} | {r['precision']:.2f} | {r['recall']:.2f} | {r['f1']:.2f} | "
+        f"{r['support']} | {r['minimum']} |"
+        for r in metric_rows(metrics, minimums)
+    ]
+    return lines
+
+
+def _markdown_eval_header(ev: dict[str, Any]) -> list[str]:
+    verdict = "PASSED" if ev["passed"] else "FAILED"
+    lines = ["", f"## Result: {verdict}", ""]
+    lines += [f"- {failure}" for failure in ev["failures"]] or ["All minimums met."]
+    if ev["provisional"]:
+        lines += ["", "> Minimums are provisional until measured against real Jev."]
+    if ev["skipped_questions"]:
+        skipped = ", ".join(ev["skipped_questions"])
+        lines += ["", f"Labels not asked by this policy (skipped): {skipped}"]
+    return lines
+
+
+def _markdown_eval_details(ev: dict[str, Any]) -> list[str]:
+    lines = ["", "## By category", "", "| category | samples | correct | accuracy |"]
+    lines += ["|---|---:|---:|---:|"]
+    lines += [
+        f"| {name} | {c['samples']} | {c['correct']} | {c['accuracy']:.0%} |"
+        for name, c in ev["per_category"].items()
+    ]
+    lines += ["", f"## Mistakes ({len(ev['mistakes'])})", ""]
+    if not ev["mistakes"]:
+        return [*lines, "None."]
+    lines += ["| id | kind | category | got | reasons | text |", "|---|---|---|---|---|---|"]
+    lines += [
+        f"| {m['id']} | {m['kind']} | {m['category']} | {m['got']} | "
+        f"{_md_escape('; '.join(m['reasons']))} | {_md_escape(m['text'])} |"
+        for m in ev["mistakes"]
     ]
     return lines
 
@@ -184,7 +241,7 @@ _HTML = """<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>jev-guard scan: {{ r.source }}</title>
+<title>jev-guard {{ kind }}: {{ r.source }}</title>
 <style>
 :root { --bg:#fff; --fg:#1b1f24; --muted:#5b6470; --line:#e3e6ea; --card:#f6f8fa;
         --allow:#1a7f37; --review:#9a6700; --block:#cf222e; --bar:#0969da; }
@@ -202,6 +259,9 @@ h2 { font-size: 17px; margin: 32px 0 12px; }
 .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px 14px; }
 .card b { display:block; font-size:22px; font-variant-numeric: tabular-nums; }
 .warn { border-color: var(--review); }
+.result { margin-top:20px; padding:14px 16px; border-radius:8px; border:2px solid currentColor; }
+.result h2 { margin:0 0 6px; }
+.result ul { margin:6px 0 0; }
 .scroll { overflow-x:auto; }
 table { border-collapse:collapse; width:100%; font-size:14px; }
 th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
@@ -216,7 +276,7 @@ code { font-size: 13px; }
 </style>
 </head>
 <body><main>
-<h1>jev-guard scan</h1>
+<h1>jev-guard {{ kind }}</h1>
 <div class="muted"><code>{{ r.source }}</code> · policy <b>{{ r.policy.name }}</b> v{{ r.policy.version }}
  · format {{ r.format }} · {{ r.generated_at }}</div>
 
@@ -231,6 +291,16 @@ code { font-size: 13px; }
     <b>{{ r.summary.skipped_budget }}</b><span class="muted">records not checked</span></div>{% endif %}
   {% if r.summary.errors %}<div class="card warn">Errors<b>{{ r.summary.errors }}</b></div>{% endif %}
 </div>
+
+{% if ev %}
+<div class="result {{ 'allow' if ev.passed else 'block' }}">
+<h2>{{ "PASSED" if ev.passed else "FAILED" }}: {{ ev.dataset }}{% if ev.dataset_version %} v{{ ev.dataset_version }}{% endif %}</h2>
+{% if ev.failures %}<ul>{% for f in ev.failures %}<li>{{ f }}</li>{% endfor %}</ul>
+{% else %}<span>All minimums met on {{ ev.samples }} samples.</span>{% endif %}
+</div>
+{% if ev.provisional %}<p class="muted">Minimums are provisional until measured against real Jev.</p>{% endif %}
+{% if ev.skipped_questions %}<p class="muted">Labels not asked by this policy (skipped): {{ ev.skipped_questions|join(", ") }}</p>{% endif %}
+{% endif %}
 
 <h2>Actions</h2>
 <div class="scroll"><table>
@@ -266,15 +336,36 @@ code { font-size: 13px; }
 {% if r.metrics %}
 <h2>Accuracy on {{ r.metrics.labelled }} labelled records</h2>
 <div class="scroll"><table>
-<tr><th>question</th><th class="num">precision</th><th class="num">recall</th><th class="num">F1</th><th class="num">support</th></tr>
-<tr><td><b>flagged (any question)</b></td><td class="num">{{ "%.2f"|format(r.metrics.flagged.precision) }}</td>
-<td class="num">{{ "%.2f"|format(r.metrics.flagged.recall) }}</td><td class="num">{{ "%.2f"|format(r.metrics.flagged.f1) }}</td>
-<td class="num">{{ r.metrics.flagged.support }}</td></tr>
-{% for name, m in r.metrics.per_question.items() %}
-<tr><td>{{ name }}</td><td class="num">{{ "%.2f"|format(m.precision) }}</td><td class="num">{{ "%.2f"|format(m.recall) }}</td>
-<td class="num">{{ "%.2f"|format(m.f1) }}</td><td class="num">{{ m.support }}</td></tr>
+<tr><th>question</th><th class="num">precision</th><th class="num">recall</th><th class="num">F1</th><th class="num">support</th>{% if ev %}<th>minimum</th>{% endif %}</tr>
+{% for m in rows %}
+<tr><td>{{ m.name }}</td><td class="num">{{ "%.2f"|format(m.precision) }}</td><td class="num">{{ "%.2f"|format(m.recall) }}</td>
+<td class="num">{{ "%.2f"|format(m.f1) }}</td><td class="num">{{ m.support }}</td>{% if ev %}<td class="muted">{{ m.minimum }}</td>{% endif %}</tr>
 {% endfor %}
 </table></div>
+{% endif %}
+
+{% if ev %}
+<h2>By category</h2>
+<div class="scroll"><table>
+<tr><th>category</th><th class="num">samples</th><th class="num">correct</th><th class="num">accuracy</th></tr>
+{% for name, c in ev.per_category.items() %}
+<tr><td>{{ name }}</td><td class="num">{{ c.samples }}</td><td class="num">{{ c.correct }}</td>
+<td class="num">{{ "%.0f"|format(c.accuracy * 100) }}%</td></tr>
+{% endfor %}
+</table></div>
+
+<h2>Mistakes ({{ ev.mistakes|length }})</h2>
+{% if ev.mistakes %}
+<div class="scroll"><table>
+<tr><th>id</th><th>kind</th><th>category</th><th>got</th><th>reasons</th><th>text</th></tr>
+{% for m in ev.mistakes %}
+<tr><td><code>{{ m.id }}</code></td><td>{{ m.kind }}</td><td>{{ m.category }}</td>
+<td><span class="pill {{ m.got }}">{{ m.got }}</span></td>
+<td><ul class="reasons">{% for reason in m.reasons %}<li><code>{{ reason }}</code></li>{% endfor %}</ul></td>
+<td>{{ m.text }}</td></tr>
+{% endfor %}
+</table></div>
+{% else %}<p class="muted">None.</p>{% endif %}
 {% endif %}
 
 {% if r.errors %}<h2>Errors</h2><ul>{% for e in r.errors %}<li>line {{ e.line }}: {{ e.error }}</li>{% endfor %}</ul>{% endif %}
@@ -295,7 +386,18 @@ def render_html(report: dict[str, Any]) -> str:
             hint='pip install "jev-guard[cli]", or use --format json / md',
         ) from err
     env = jinja2.Environment(autoescape=True, undefined=jinja2.StrictUndefined)
-    return env.from_string(_HTML).render(r=report)
+    ev = report.get("eval")
+    rows = (
+        metric_rows(report["metrics"], ev["minimums"] if ev else None) if report["metrics"] else []
+    )
+    return env.from_string(_HTML).render(r=report, ev=ev, rows=rows, kind="eval" if ev else "scan")
+
+
+def build_eval_report(result: EvalResult) -> dict[str, Any]:
+    """A scan report over the golden samples, plus the eval verdict under ``"eval"``."""
+    report = build_report(result.scan, source=result.golden.source, log_format="golden")
+    report["eval"] = eval_section(result)
+    return report
 
 
 RENDERERS = {"json": render_json, "md": render_markdown, "html": render_html}

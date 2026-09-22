@@ -18,8 +18,14 @@ from rich.table import Table
 
 from jev_guard import __version__
 from jev_guard.errors import ConfigurationError, JevGuardError, PolicyError
+from jev_guard.eval.golden import (
+    DEFAULT_EVAL_MAX_COST_USD,
+    estimate_eval_cost,
+    load_golden,
+    run_golden,
+)
 from jev_guard.eval.logs import read_log_file
-from jev_guard.eval.report import RENDERERS, build_report
+from jev_guard.eval.report import RENDERERS, build_eval_report, build_report, metric_rows
 from jev_guard.eval.scan import (
     DEFAULT_CONCURRENCY,
     DEFAULT_MAX_COST_USD,
@@ -33,6 +39,7 @@ from jev_guard.types import Verdict
 
 EXIT_USER_ERROR = 1
 EXIT_FAIL_ON = 3
+EXIT_BELOW_MINIMUM = 4
 WARNINGS_SHOWN = 5
 
 app = typer.Typer(
@@ -153,6 +160,20 @@ def check(
 # --- scan ---------------------------------------------------------------------------------
 
 
+def _require_budget_and_key(estimate: float, max_cost: float) -> None:
+    """Refuse before any Jev call if it would cost too much or can't authenticate."""
+    if estimate > max_cost:
+        raise ConfigurationError(
+            f"Estimated cost ${estimate:.4f} is over --max-cost ${max_cost:.4f}.",
+            hint=f"Re-run with --max-cost {max(estimate * 1.2, 0.01):.2f}, or use less data.",
+        )
+    if not os.environ.get("TYPESAFE_API_KEY", "").strip():
+        raise ConfigurationError(
+            "TYPESAFE_API_KEY is not set, so jev-guard can't reach Jev.",
+            hint="Set TYPESAFE_API_KEY (https://console.typesafe.ai/keys), or use --dry-run.",
+        )
+
+
 _SUFFIX_FORMATS = {
     ".html": ReportFormat.html,
     ".htm": ReportFormat.html,
@@ -226,16 +247,7 @@ def scan(
     if dry_run:
         out.print("Dry run: nothing was sent to Jev.")
         return
-    if estimate > max_cost:
-        raise ConfigurationError(
-            f"Estimated cost ${estimate:.4f} is over --max-cost ${max_cost:.4f}.",
-            hint=f"Re-run with --max-cost {estimate * 1.2:.2f}, or scan a smaller file.",
-        )
-    if not os.environ.get("TYPESAFE_API_KEY", "").strip():
-        raise ConfigurationError(
-            "TYPESAFE_API_KEY is not set, so jev-guard can't reach Jev.",
-            hint="Set TYPESAFE_API_KEY (https://console.typesafe.ai/keys), or use --dry-run.",
-        )
+    _require_budget_and_key(estimate, max_cost)
 
     with Progress(
         TextColumn("scanning"), BarColumn(), MofNCompleteColumn(), console=err, transient=True
@@ -290,6 +302,107 @@ def _print_scan_summary(report: dict[str, Any]) -> None:
         )
     if s["errors"]:
         err.print(f"[red]{s['errors']} records failed[/]; see the report's Errors section.")
+
+
+# --- eval ---------------------------------------------------------------------------------
+
+
+@app.command("eval")
+@friendly
+def eval_command(
+    policy: Annotated[
+        str | None,
+        typer.Option("--policy", "-p", help="Builtin name or YAML path. Default: the manifest's."),
+    ] = None,
+    dataset: Annotated[
+        Path | None,
+        typer.Option(help="Dataset folder (with manifest.json) or .jsonl file. Default: builtin."),
+    ] = None,
+    out_path: Annotated[
+        Path | None, typer.Option("--out", help="Write the full report, e.g. eval.html.")
+    ] = None,
+    report_format: Annotated[
+        ReportFormat | None, typer.Option("--format", help="html, json, or md.")
+    ] = None,
+    max_cost: Annotated[
+        float, typer.Option(help="Refuse to spend more than this many USD.", min=0)
+    ] = DEFAULT_EVAL_MAX_COST_USD,
+    dry_run: Annotated[
+        bool, typer.Option("--dry-run", help="Estimate the cost and exit. No Jev calls.")
+    ] = False,
+    concurrency: Annotated[
+        int, typer.Option(help="Parallel Jev calls.", min=1, max=16)
+    ] = DEFAULT_CONCURRENCY,
+) -> None:
+    """Score a policy on the labelled golden dataset. Exits 4 if a minimum isn't met."""
+    golden = load_golden(dataset)
+    resolved = _resolve_policy(policy or (golden.manifest.policy if golden.manifest else None))
+    estimate = estimate_eval_cost(resolved, golden)
+    out.print(
+        f"{len(golden.samples)} samples from {golden.source} with policy "
+        f"[bold]{resolved.name}[/]: estimated [bold]${estimate:.4f}[/]",
+        highlight=False,
+    )
+    if dry_run:
+        out.print("Dry run: nothing was sent to Jev.")
+        return
+    _require_budget_and_key(estimate, max_cost)
+
+    with Progress(
+        TextColumn("evaluating"), BarColumn(), MofNCompleteColumn(), console=err, transient=True
+    ) as progress:
+        task = progress.add_task("eval", total=len(golden.samples))
+        result = asyncio.run(
+            run_golden(
+                resolved,
+                golden,
+                max_cost_usd=max_cost,
+                concurrency=concurrency,
+                on_progress=lambda: progress.advance(task),
+            )
+        )
+    report = build_eval_report(result)
+    _print_eval_summary(report)
+    fmt = _format_for(out_path, report_format)
+    if fmt is not None:
+        rendered = RENDERERS[fmt.value](report)
+        if out_path is None:
+            typer.echo(rendered)
+        else:
+            out_path.write_text(rendered, encoding="utf-8")
+            out.print(f"Report written to [bold]{out_path}[/]", highlight=False)
+    if not result.passed:
+        raise typer.Exit(EXIT_BELOW_MINIMUM)
+
+
+def _print_eval_summary(report: dict[str, Any]) -> None:
+    ev = report["eval"]
+    if report["metrics"]:
+        table = Table("question", "precision", "recall", "F1", "support", "minimum")
+        for row in metric_rows(report["metrics"], ev["minimums"]):
+            table.add_row(
+                row["name"],
+                f"{row['precision']:.2f}",
+                f"{row['recall']:.2f}",
+                f"{row['f1']:.2f}",
+                str(row["support"]),
+                row["minimum"],
+            )
+        out.print(table)
+    s = report["summary"]
+    out.print(
+        f"{s['checks']} checks · ${s['cost_usd']:.4f} · avg {s['avg_latency_ms']:.0f} ms · "
+        f"{len(ev['mistakes'])} mistakes",
+        highlight=False,
+    )
+    if ev["passed"]:
+        out.print("[bold green]PASSED[/]: all minimums met.")
+    else:
+        err.print("[bold red]FAILED[/]:")
+        for failure in ev["failures"]:
+            err.print(f"  - {failure}", highlight=False, markup=False)
+    if ev["provisional"]:
+        out.print("Minimums are provisional until measured against real Jev.", style="dim")
 
 
 # --- policy -------------------------------------------------------------------------------
