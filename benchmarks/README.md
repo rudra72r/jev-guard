@@ -32,8 +32,9 @@ Without `--run`, nothing paid is called. With it, the estimated total must be un
 `--max-cost`, and each detector stops at its share of the budget. Results go to
 `benchmarks/results/` as Markdown and JSON.
 
-Estimated cost of a full run over all 590 samples: about **$0.01 for jev-guard** and about
-**$0.20 for the Haiku judge** at $1 / $5 per million tokens. Check current prices and pass
+Estimated cost of a full run over all 590 samples (computed by the harness's own
+estimators): **$0.0101 for jev-guard** and **$0.1827 for the Haiku judge** at $1 / $5 per
+million tokens, so the judge costs about 18× more on identical data. Check current prices and pass
 `--judge-price-in` / `--judge-price-out` if they've changed.
 
 ## Regex baseline (measured)
