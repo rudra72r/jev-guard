@@ -1,22 +1,80 @@
 # Guarding a Claude Code agent
 
-Coding agents are the case where one bad action costs the most: `rm -rf`, a force-push, or an API key pasted into a commit. The `coding_agent` policy checks two things:
+Coding agents are where one bad action costs the most: `rm -rf`, a force-push, an API key
+pasted into a commit, or a web page that tells the agent to do any of those. jev-guard plugs
+into Claude Code's tool hooks with one command.
 
-- **each command before it runs** (input stage): destructive commands, secret access, network writes, privilege escalation
-- **generated code before it's applied** (output stage): suggested destructive commands, hardcoded secrets, unsafe deserialization, SQL injection
+## Set it up
 
-## Check every tool call
+```bash
+pip install "jev-guard[cli]"
+export TYPESAFE_API_KEY=sk-...
+```
 
-Put the check in your tool executor, so the model can't route around it:
+Add the hooks to `.claude/settings.json` in your project (or `~/.claude/settings.json` for
+all projects):
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Write|Edit|mcp__.*",
+        "hooks": [{ "type": "command", "command": "jev-guard hook claude-code", "timeout": 30 }]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "WebFetch|WebSearch|Read|mcp__.*",
+        "hooks": [{ "type": "command", "command": "jev-guard hook claude-code", "timeout": 30 }]
+      }
+    ]
+  }
+}
+```
+
+## What it does
+
+**Before a tool runs** (PreToolUse), the tool name and input are checked with the
+`agent_tools` policy:
+
+- **block** (destructive commands, touching credentials, or two risky signals together):
+  the call doesn't run, and Claude sees the reason.
+- **review** (sending data out, consequential actions): Claude Code asks you to confirm.
+- **allow**: the hook prints nothing, so your normal Claude Code permission rules still
+  apply. It never auto-approves anything.
+
+**After a tool returns** (PostToolUse), the output is checked before Claude acts on it.
+Content that tries to redirect the agent, or asks it to send data somewhere, stops the turn
+with a warning to treat that content as untrusted. This is the defence against indirect
+prompt injection from web pages, READMEs, issues, and MCP servers.
+
+## Choices
+
+- **Fail closed:** `jev-guard hook claude-code --fail-closed` blocks when Jev can't be
+  reached. By default the hook fails open (the tool runs, and a note goes to Claude Code's
+  debug log), so a Jev outage doesn't stop your work.
+- **Your own policy:** `--policy ./my_agent.yaml`, starting from `extends: agent_tools`.
+- **Cost:** each checked tool use is one Jev call (about $0.00002), and large outputs are
+  checked in 40,000-character windows. Narrow the matchers if you want fewer checks.
+
+!!! note "Why blocks use exit code 2"
+    Claude Code treats hook JSON that fails its schema as a non-blocking error and lets the
+    action proceed. So jev-guard blocks with exit code 2, which always blocks, and uses
+    JSON only for "ask". A formatting mistake can never turn into a silent allow.
+
+## Without Claude Code
+
+The same checks work in any agent loop. See [Agents and multi-turn attacks](../agents.md):
 
 ```python
-from jev_guard import Guard
+from jev_guard.agents import ToolGuard
 
-guard = Guard(policy="coding_agent")
+tools = ToolGuard()
 
 
-def run_shell(command: str) -> str:
-    verdict = guard.check_input(command)
+def run_shell(command: str, task: str) -> str:
+    verdict = tools.check_tool_call("run_shell", {"command": command}, user_request=task)
     if verdict.blocked:
         return f"Blocked by policy: {'; '.join(verdict.reasons)}. Do not retry this command."
     if verdict.action == "review":
@@ -24,48 +82,10 @@ def run_shell(command: str) -> str:
     return subprocess_run(command)  # your real executor
 ```
 
-Returning the reason to the model, instead of raising, lets the agent explain itself or choose a safer command. A full Claude tool-use loop is in [`examples/02_anthropic_agent.py`](https://github.com/rudra72r/jev-guard/blob/main/examples/02_anthropic_agent.py). It only prints approved commands, never runs them.
+Returning the reason to the model, instead of raising, lets the agent explain itself or pick
+a safer command. [`examples/02_anthropic_agent.py`](https://github.com/rudra72r/jev-guard/blob/main/examples/02_anthropic_agent.py)
+has a full Claude tool-use loop that only prints approved commands, never runs them.
 
-## Check generated code before applying it
-
-```python
-verdict = guard.check_output(task_description, proposed_diff)
-if verdict.blocked:
-    reject_patch(verdict.reasons)  # e.g. hardcoded_secret_present: 0.93 > 0.75 (critical)
-```
-
-## Claude Code hooks
-
-Claude Code can run a command before each tool call (a `PreToolUse` hook) and block the call when the command exits with code 2. A small script bridges jev-guard to that:
-
-```python
-#!/usr/bin/env python3
-"""PreToolUse hook: block risky Bash commands with jev-guard."""
-
-import json
-import sys
-
-from jev_guard import Guard, JevAPIError
-
-event = json.load(sys.stdin)
-if event.get("tool_name") != "Bash":
-    sys.exit(0)
-command = event.get("tool_input", {}).get("command", "")
-try:
-    verdict = Guard(policy="coding_agent").check_input(command)
-except JevAPIError as err:
-    print(f"jev-guard unavailable: {err}", file=sys.stderr)
-    sys.exit(0)  # fail open here; change to 2 to fail closed
-if verdict.blocked:
-    print("Blocked by jev-guard: " + "; ".join(verdict.reasons), file=sys.stderr)
-    sys.exit(2)
-```
-
-Register it as a `PreToolUse` hook for the `Bash` tool in your Claude Code settings. Check Claude Code's hooks documentation for the current event fields and settings format.
-
-## Tuning
-
-- **Sandboxed agents** (throwaway containers): raise the destructive-command thresholds to 0.9 to cut interruptions.
-- **Agents with production credentials**: start from [`policies/coding_agent_prod.yaml`](https://github.com/rudra72r/jev-guard/blob/main/policies/coding_agent_prod.yaml), where any single high-severity signal blocks and `sudo` is critical.
-
-`sudo` is only `high` in the default policy, so it goes to review rather than blocking, because installing packages legitimately needs it.
+For checking generated *code* (hardcoded secrets, SQL injection, unsafe deserialization),
+use the `coding_agent` policy's output checks:
+`Guard(policy="coding_agent").check_output(task, diff)`.

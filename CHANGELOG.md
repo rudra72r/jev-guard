@@ -34,6 +34,16 @@ First release.
 - `jev-guard` CLI: `check`, `scan` (native, Langfuse, and Arize JSONL; HTML, JSON, and
   Markdown reports), `eval`, and `policy list/show/validate`, with cost estimates,
   `--dry-run`, and `--max-cost` caps.
+- Agent guarding: `jev_guard.agents.ToolGuard` checks tool calls before they run and tool
+  results before the model reads them (windowed for long results), with a new builtin
+  `agent_tools` policy. `wrap_openai` / `wrap_anthropic` take `tool_policy=` to check every
+  tool call in a response.
+- Multi-turn checks: `jev_guard.conversation.check_conversation` catches jailbreaks spread
+  across several messages; system prompts are never sent.
+- `jev-guard hook claude-code`: a Claude Code PreToolUse / PostToolUse hook (blocks, asks for
+  review, or stays silent), failing open or closed.
+- `SECURITY.md`, `CONTRIBUTING.md`, and issue templates, including one for reporting missed
+  attacks and false alarms.
 - A 100-sample golden eval dataset (50 jailbreaks across 9 attack patterns, 30 clean
   messages including 15 hard negatives, 20 synthetic-PII samples) shipped in the package.
 

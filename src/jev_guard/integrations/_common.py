@@ -8,13 +8,17 @@ from __future__ import annotations
 
 import functools
 import inspect
+import json
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterable, Iterator, Mapping
-from typing import Any, ParamSpec, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Any, ParamSpec, TypeVar, cast, overload
 
 from jev_guard.errors import GuardBlockedError
 from jev_guard.guard import Guard
 from jev_guard.guards.streaming import achecked_stream, checked_stream
+
+if TYPE_CHECKING:
+    from jev_guard.agents import ToolGuard
 from jev_guard.policies.base import Policy
 from jev_guard.types import Verdict
 
@@ -244,6 +248,40 @@ class AsyncCheckedStream:
         return getattr(self._stream, name)
 
 
+ToolCall = tuple[str, Any]  # (tool name, arguments)
+
+
+def _parse_arguments(arguments: Any) -> Any:
+    if isinstance(arguments, str):
+        try:
+            return json.loads(arguments)
+        except json.JSONDecodeError:
+            return arguments
+    return arguments
+
+
+def _items(value: Any) -> Iterable[Any]:
+    return value if isinstance(value, list | tuple) else ()
+
+
+def tool_calls_in(response: Any) -> list[ToolCall]:
+    """The tool calls in an OpenAI (Chat Completions or Responses) or Anthropic response."""
+    calls: list[ToolCall] = []
+    for choice in _items(_get(response, "choices")):  # OpenAI chat.completions
+        for call in _items(_get(_get(choice, "message"), "tool_calls")):
+            function = _get(call, "function")
+            name = str(_get(function, "name") or "")
+            calls.append((name, _parse_arguments(_get(function, "arguments"))))
+    for item in _items(_get(response, "output")):  # OpenAI Responses API
+        if _get(item, "type") == "function_call":
+            name = str(_get(item, "name") or "")
+            calls.append((name, _parse_arguments(_get(item, "arguments"))))
+    for block in _items(_get(response, "content")):  # Anthropic messages
+        if _get(block, "type") == "tool_use":
+            calls.append((str(_get(block, "name") or ""), _get(block, "input")))
+    return calls
+
+
 _WRAPPED = "__jev_guard_wrapped__"
 
 
@@ -252,8 +290,13 @@ def patch_create(
     guard: Guard,
     prompt_of: Callable[[dict[str, Any]], str],
     reply_of: Callable[[Any], str],
+    tool_guard: ToolGuard | None = None,
 ) -> None:
-    """Replace `resource.create` with a checked version (sync or async). Idempotent."""
+    """Replace `resource.create` with a checked version (sync or async). Idempotent.
+
+    With ``tool_guard``, every tool call in a (non-streamed) response is checked too, with
+    the prompt as the user's request; a blocked call raises ``GuardBlockedError``.
+    """
     original = resource.create
     if getattr(original, _WRAPPED, False):
         return
@@ -268,6 +311,9 @@ def patch_create(
             if kwargs.get("stream"):
                 return AsyncCheckedStream(response, guard, prompt)
             enforce(await guard.acheck_output(prompt, reply_of(response)))
+            if tool_guard is not None:
+                for name, arguments in tool_calls_in(response):
+                    enforce(await tool_guard.acheck_tool_call(name, arguments, prompt or None))
             return response
 
         setattr(acreate, _WRAPPED, True)
@@ -282,6 +328,9 @@ def patch_create(
         if kwargs.get("stream"):
             return CheckedStream(response, guard, prompt)
         enforce(guard.check_output(prompt, reply_of(response)))
+        if tool_guard is not None:
+            for name, arguments in tool_calls_in(response):
+                enforce(tool_guard.check_tool_call(name, arguments, prompt or None))
         return response
 
     setattr(create, _WRAPPED, True)

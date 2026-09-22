@@ -108,6 +108,20 @@ async for token in guard.astream_check(stream, user_message):
     ...
 ```
 
+For agents and multi-turn chats:
+
+```python
+from jev_guard.agents import ToolGuard
+from jev_guard.conversation import check_conversation
+
+check_conversation(guard, messages)  # jailbreaks spread across turns
+tools = ToolGuard()
+tools.check_tool_call("run_shell", {"command": cmd}, user_request=task)  # before it runs
+tools.check_tool_result("fetch_url", page, user_request=task)  # indirect injection
+```
+
+In Claude Code, `jev-guard hook claude-code` does this for every tool call ([recipe](docs/recipes/claude-code-agent.md)).
+
 Also included: a [LangChain callback](docs/recipes/rag-grounding.md), a [LiteLLM proxy guardrail](docs/recipes/litellm-proxy.md), [OpenTelemetry spans](docs/telemetry.md), [`redact()`](docs/redaction.md) for PII, and a CLI (`pip install "jev-guard[cli]"`) with `check`, `scan`, `eval`, and `policy`.
 
 ## Policies at a glance
@@ -119,6 +133,7 @@ Also included: a [LangChain callback](docs/recipes/rag-grounding.md), a [LiteLLM
 | `support_agent` | Customer support bots | `contains_legal_or_medical_advice` · `contains_sla_commitment` · `frustration_level` |
 | `coding_agent` | Agents that run commands and write code | `contains_destructive_command` · `touches_secrets_or_env` · `sql_injection_risk` |
 | `rag` | Answers grounded in retrieved documents | `answer_grounded_in_context` · `hallucination_risk` · `answer_contradicts_context` |
+| `agent_tools` | An agent's tool calls and tool results | `contains_injected_instructions` · `is_destructive` · `fits_user_request` |
 
 `critical` questions block on their own; `high` ones send a message to review, and several together can block; `medium` and `low` only lower the confidence score. Every reason names the question, its value, its threshold, and its severity. Policies are plain YAML: `jev-guard policy show support_agent`, then copy, `extends:`, and tune. See [docs/policies.md](docs/policies.md).
 

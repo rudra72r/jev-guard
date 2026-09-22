@@ -6,6 +6,7 @@ import asyncio
 import functools
 import json
 import os
+import sys
 from collections.abc import Callable
 from enum import Enum
 from pathlib import Path
@@ -17,6 +18,7 @@ from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn
 from rich.table import Column, Table
 
 from jev_guard import __version__
+from jev_guard.agents import ToolGuard
 from jev_guard.errors import ConfigurationError, JevGuardError, PolicyError
 from jev_guard.eval.golden import (
     DEFAULT_EVAL_MAX_COST_USD,
@@ -33,6 +35,7 @@ from jev_guard.eval.scan import (
     run_scan,
 )
 from jev_guard.guard import Guard, _resolve_policy
+from jev_guard.integrations.claude_code import BLOCK_EXIT, handle_event
 from jev_guard.policies import BUILTIN_POLICIES, Policy
 from jev_guard.policies.loader import dump_policy, validate_policy_file
 from jev_guard.types import Verdict
@@ -51,6 +54,8 @@ app = typer.Typer(
 )
 policy_app = typer.Typer(help="List, show, and validate policies.", no_args_is_help=True)
 app.add_typer(policy_app, name="policy")
+hook_app = typer.Typer(help="Run jev-guard as a hook inside other tools.", no_args_is_help=True)
+app.add_typer(hook_app, name="hook")
 
 # soft_wrap: never insert hard line breaks into messages. Rich otherwise wraps at 80 columns
 # when not writing to a terminal (CI, pipes, log files), splitting paths and error lines.
@@ -405,6 +410,32 @@ def _print_eval_summary(report: dict[str, Any]) -> None:
             err.print(f"  - {failure}", highlight=False, markup=False)
     if ev["provisional"]:
         out.print("Minimums are provisional until measured against real Jev.", style="dim")
+
+
+# --- hook ---------------------------------------------------------------------------------
+
+
+@hook_app.command("claude-code")
+def hook_claude_code(
+    policy: Annotated[
+        str, typer.Option("--policy", "-p", help="Tool policy: builtin name or YAML path.")
+    ] = "agent_tools",
+    fail_closed: Annotated[
+        bool, typer.Option("--fail-closed", help="Block when Jev can't be reached.")
+    ] = False,
+) -> None:
+    """Claude Code PreToolUse / PostToolUse hook. Reads the hook event JSON on stdin."""
+    try:
+        tool_guard = ToolGuard(policy)
+    except JevGuardError as error:  # a bad policy must be visible, and must not fail open
+        sys.stderr.write(f"jev-guard: {error.args[0]}\n")
+        raise typer.Exit(BLOCK_EXIT) from None
+    result = handle_event(sys.stdin.read(), tool_guard, fail_closed=fail_closed)
+    if result.stdout:
+        sys.stdout.write(result.stdout + "\n")
+    if result.stderr:
+        sys.stderr.write(result.stderr + "\n")
+    raise typer.Exit(result.exit_code)
 
 
 # --- policy -------------------------------------------------------------------------------

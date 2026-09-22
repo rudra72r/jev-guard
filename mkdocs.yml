@@ -39,6 +39,7 @@ nav:
   - Guide:
       - Policies: policies.md
       - Streaming: streaming.md
+      - Agents and multi-turn: agents.md
       - Telemetry: telemetry.md
       - PII redaction: redaction.md
       - Command line: cli.md
