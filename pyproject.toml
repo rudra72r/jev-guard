@@ -1,0 +1,93 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "jev-guard"
+version = "0.1.0"
+description = "Fast, cheap guardrails for LLM apps, powered by TypeSafe's Jev model."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+authors = [{ name = "Rudra" }]
+keywords = ["llm", "guardrails", "jev", "typesafe-ai", "prompt-injection", "llm-security"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Typing :: Typed",
+]
+dependencies = [
+    # 0.x SDK ships breaking changes between minors (0.6 and 0.7 both did) — pin the minor.
+    "typesafe-sdk>=0.7.1,<0.8",
+    "pydantic>=2.12",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+otel = ["opentelemetry-api>=1.25"]
+cli = ["typer>=0.12", "rich>=13", "jinja2>=3.1"]
+langchain = ["langchain-core>=0.3"]
+anthropic = ["anthropic>=0.40"]
+openai = ["openai>=1.0"]
+all = ["jev-guard[otel,cli,langchain,anthropic,openai]"]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=5",
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "hatch>=1.12",
+    "types-PyYAML",
+]
+
+[project.urls]
+Homepage = "https://github.com/rudra72r/jev-guard"
+Repository = "https://github.com/rudra72r/jev-guard"
+Issues = "https://github.com/rudra72r/jev-guard/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/jev_guard"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "SIM", "ARG", "PL"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["PLR2004", "ARG", "PLR0913"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+files = ["src"]
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+strict = false
+disallow_untyped_defs = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "--strict-markers"
+markers = [
+    "integration: calls the real Jev API; needs TYPESAFE_API_KEY and JEV_GUARD_ALLOW_LIVE=1",
+]
+
+[tool.coverage.run]
+source = ["jev_guard"]
+omit = ["*/jev_guard/integrations/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
