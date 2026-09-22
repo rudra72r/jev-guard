@@ -45,7 +45,13 @@ dev = [
     "hatch>=1.12",
     "types-PyYAML",
     "langchain-core>=0.3",  # needed to type-check and test the LangChain callback
+    "typer>=0.12",
+    "rich>=13",
+    "jinja2>=3.1",
 ]
+
+[project.scripts]
+jev-guard = "jev_guard.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/rudra72r/jev-guard"
@@ -64,9 +70,13 @@ src = ["src", "tests"]
 select = ["E", "F", "I", "N", "UP", "B", "SIM", "ARG", "PL"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["PLR2004", "ARG", "PLR0913"]
+"tests/**" = ["PLR2004", "ARG", "PLR0913", "PLR0917"]
 # Callback signatures are fixed by LangChain's BaseCallbackHandler interface.
 "src/jev_guard/integrations/langchain_cb.py" = ["ARG002"]
+# Typer commands declare every CLI option as a parameter.
+"src/jev_guard/_cli_app.py" = ["PLR0913", "PLR0917"]
+# The inline HTML report template has long lines by nature.
+"src/jev_guard/eval/report.py" = ["E501"]
 # Numbered file names are intentional; framework callbacks fix some signatures.
 "examples/**" = ["PLR2004", "N999", "ARG002"]
 
