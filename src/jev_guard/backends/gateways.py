@@ -22,17 +22,29 @@ Checked against Cloudflare's model docs on 2026-09-23.
 
 from __future__ import annotations
 
+import functools
 import os
 import time
 from collections.abc import Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import httpx2
+if TYPE_CHECKING:
+    import httpx2
+
 
 from jev_guard.backends.judge import _raise_for
 from jev_guard.client import JevResult, WireQuestions
 from jev_guard.errors import ConfigurationError, JevUnavailableError
 from jev_guard.types import JevAnswer
+
+
+@functools.cache
+def _httpx() -> Any:
+    """httpx2, imported on first request so ``import jev_guard`` doesn't pay for it."""
+    import httpx2  # noqa: PLC0415 (deliberately lazy)
+
+    return httpx2
+
 
 CLOUDFLARE_MODEL = "typesafe/jev"
 CLOUDFLARE_URL = "https://api.cloudflare.com/client/v4/accounts/{account}/ai/run"
@@ -139,11 +151,11 @@ class CloudflareJevBackend:
     def evaluate(self, state: Mapping[str, Any], questions: WireQuestions) -> JevResult:
         url, headers, payload = self._request(state, questions)
         if self._client is None:
-            self._client = httpx2.Client(timeout=self._timeout, transport=self._transport)
+            self._client = _httpx().Client(timeout=self._timeout, transport=self._transport)
         start = time.perf_counter()
         try:
             response = self._client.post(url, json=payload, headers=headers)
-        except (httpx2.TimeoutException, httpx2.TransportError) as err:
+        except (_httpx().TimeoutException, _httpx().TransportError) as err:
             raise JevUnavailableError(f"{self.provider} unreachable: {err}") from err
         _raise_for(response, self.provider)
         return self._result(response.json(), (time.perf_counter() - start) * 1000)
@@ -151,12 +163,12 @@ class CloudflareJevBackend:
     async def aevaluate(self, state: Mapping[str, Any], questions: WireQuestions) -> JevResult:
         url, headers, payload = self._request(state, questions)
         start = time.perf_counter()
-        async with httpx2.AsyncClient(
+        async with _httpx().AsyncClient(
             timeout=self._timeout, transport=self._async_transport
         ) as client:
             try:
                 response = await client.post(url, json=payload, headers=headers)
-            except (httpx2.TimeoutException, httpx2.TransportError) as err:
+            except (_httpx().TimeoutException, _httpx().TransportError) as err:
                 raise JevUnavailableError(f"{self.provider} unreachable: {err}") from err
         _raise_for(response, self.provider)
         return self._result(response.json(), (time.perf_counter() - start) * 1000)

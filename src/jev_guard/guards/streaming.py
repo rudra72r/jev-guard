@@ -39,10 +39,10 @@ from collections.abc import (
     Generator,
     Iterable,
     Iterator,
-    Mapping,
 )
 from typing import Any, Literal
 
+from jev_guard._fields import field
 from jev_guard.errors import GuardBlockedError
 from jev_guard.types import Verdict
 
@@ -78,34 +78,28 @@ class StreamCut(str):
         return cut
 
 
-def _get(obj: Any, key: str) -> Any:
-    if isinstance(obj, Mapping):
-        return obj.get(key)
-    return getattr(obj, key, None)
-
-
 def chunk_text(chunk: Any) -> str:  # noqa: PLR0911 (one return per SDK chunk shape)
     """The text in one stream item: a str, or an OpenAI / Anthropic / LangChain chunk."""
     if isinstance(chunk, str):
         return chunk
     if isinstance(chunk, bytes):
         return chunk.decode("utf-8", errors="replace")
-    choices = _get(chunk, "choices")
+    choices = field(chunk, "choices")
     if choices:  # OpenAI chat.completions chunk
-        content = _get(_get(choices[0], "delta"), "content")
+        content = field(field(choices[0], "delta"), "content")
         return content if isinstance(content, str) else ""
-    kind = _get(chunk, "type")
+    kind = field(chunk, "type")
     if kind == "response.output_text.delta":  # OpenAI Responses API event
-        delta = _get(chunk, "delta")
+        delta = field(chunk, "delta")
         return delta if isinstance(delta, str) else ""
     if kind == "content_block_delta":  # Anthropic messages stream event
-        text = _get(_get(chunk, "delta"), "text")
+        text = field(field(chunk, "delta"), "text")
         return text if isinstance(text, str) else ""
-    content = _get(chunk, "content")  # LangChain AIMessageChunk and similar
+    content = field(chunk, "content")  # LangChain AIMessageChunk and similar
     if isinstance(content, str):
         return content
     if isinstance(content, list):
-        return "".join(p if isinstance(p, str) else str(_get(p, "text") or "") for p in content)
+        return "".join(p if isinstance(p, str) else str(field(p, "text") or "") for p in content)
     return ""
 
 

@@ -72,9 +72,7 @@ exclude = [
     "/.github",
     "/.venv",
     "/benchmarks/.cache",
-    "SPEC.md",
-    "REALITY_REPORT.md",
-    "LAUNCH.md",
+    "/notes",  # build history (spec, deviations, launch checklist) — not part of the package
 ]
 
 [tool.hatch.build.targets.wheel]

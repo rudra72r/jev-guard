@@ -22,7 +22,7 @@ jev-guard --backend local eval
 | backend | spec | needs | speed | cost | notes |
 |---|---|---|---|---|---|
 | **Jev** (default) | `jev`, `jev:jev-1.13.0` | `TYPESAFE_API_KEY` | 70–500 ms | $0.042 / 1M tokens | Best quality per millisecond. Doesn't generate text, so it can't be talked into ignoring its instructions. |
-| **Local** | `local`, `local:MODEL` | `pip install "jev-guard[local]"` | ~6 s per check on a 4-thread CPU (measured), much faster on GPU | free | Fully offline and private. Less nuanced. |
+| **Local** | `local`, `local:MODEL` | `pip install "jev-guard[local]"` | ~7 s per check on a 4-thread CPU, after a one-time ~23 s model load (measured); much faster on GPU | free | Fully offline and private. Less nuanced. |
 | **LLM judge** | `openai:MODEL`, `ollama:MODEL`, `openai-compatible:MODEL@URL`, `anthropic:MODEL` | that provider's key (none for local servers) | 0.3–3 s | the model's price | Works with any OpenAI-compatible server: Ollama, vLLM, LM Studio, llama.cpp, OpenRouter. |
 | **Jev via Cloudflare** | `cloudflare` | `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN` | same as Jev | Cloudflare's price | The same model, billed to Cloudflare. **No TypeSafe account needed**, which matters while TypeSafe signups are closed. |
 | **Fallback** | `jev,local` | — | — | — | Tries each in turn when one is unreachable, throttled, or has no key. |
@@ -43,8 +43,22 @@ questions, and a zero-shot NLI model (`MoritzLaurer/deberta-v3-base-zeroshot-v2.
 answers everything else, including choice and score questions. They download on first use
 (~1.5 GB).
 
+Two questions are answered by patterns before any model runs, because the zero-shot model is
+measurably weak at both: PII (precision 1.00 / recall 0.80, against 0.20 from the model) and
+destructive commands — it scores `rm -rf / --no-preserve-root` at 0.07 for "is this
+destructive". `is_destructive` and `contains_destructive_command` therefore match a list of
+command shapes first (`rm -rf /`, `mkfs`, `DROP DATABASE`, `terraform destroy`, `git push
+--force`, and similar), and fall back to the model when nothing matches, so novel phrasings
+are still judged. This is what makes the offline [Claude Code hook](recipes/claude-code-agent.md)
+actually stop a destructive command.
+
 For roughly 3x the speed at some cost in accuracy:
 `local:MoritzLaurer/deberta-v3-xsmall-zeroshot-v1.1-all-33`.
+
+The models load into memory once per process, which takes about 23 seconds. A long-running
+app pays that at startup; `jev-guard check` pays it on every run, so use the CLI's
+[`scan`](cli.md) for batches rather than calling `check` in a loop. Set
+`JEV_GUARD_LOCAL_VERBOSE=1` to see the transformers logs jev-guard otherwise silences.
 
 Measure the tradeoff on the bundled dataset, for free:
 

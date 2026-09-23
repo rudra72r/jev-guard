@@ -4,7 +4,7 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
-## [0.1.0] - 2026-09-22
+## [0.1.0] - 2026-09-24
 
 First release.
 
@@ -13,9 +13,9 @@ First release.
 - `Guard` with `check_input` / `check_output` and async `acheck_input` / `acheck_output`,
   returning a JSON-serializable `Verdict` (action, reasons, confidence, raw Jev answers,
   latency, tokens, cost, suggested safe reply).
-- Five builtin policies: `general` (default), `writing_app`, `support_agent`,
-  `coding_agent`, `rag`, each with a YAML twin in `policies/` and sample `strict`,
-  `permissive`, and `coding_agent_prod` policies.
+- Six builtin policies: `general` (default), `writing_app`, `support_agent`,
+  `coding_agent`, `rag`, and `agent_tools`, each with a YAML twin in `policies/` and sample
+  `strict`, `permissive`, `coding_agent_prod`, and `general_local` policies.
 - Severity-weighted aggregation: critical questions block alone, high questions sum
   toward review and block thresholds, medium and low only lower confidence. Every
   reason names the question, value, threshold, and severity.
@@ -34,11 +34,23 @@ First release.
 - `jev-guard` CLI: `check`, `scan` (native, Langfuse, and Arize JSONL; HTML, JSON, and
   Markdown reports), `eval`, and `policy list/show/validate`, with cost estimates,
   `--dry-run`, and `--max-cost` caps.
-- Pluggable backends (`jev_guard.backends`): Jev (default), local transformer models
-  (offline and free), an LLM judge on any OpenAI-compatible server or Anthropic, and
-  fallback chains like `jev,local`. Selected process-wide with `set_backend()`,
-  `JEV_GUARD_BACKEND`, or `jev-guard --backend`; policies, verdicts, CLI, and integrations
-  are unchanged.
+- Pluggable backends (`jev_guard.backends`): Jev (default), Jev through Cloudflare Workers AI
+  (no TypeSafe account needed), local transformer models (offline and free), an LLM judge on
+  any OpenAI-compatible server or Anthropic, and fallback chains like `jev,local`. Selected
+  process-wide with `set_backend()`, `JEV_GUARD_BACKEND`, or `jev-guard --backend`; policies,
+  verdicts, CLI, and integrations are unchanged.
+- Measured accuracy on the bundled eval with the offline backend, reproducible with no API
+  key: flagged F1 0.94, `is_prompt_injection` F1 0.95, `contains_pii` F1 0.92. Reports in
+  `benchmarks/results/`.
+- The offline backend answers `is_destructive` and `contains_destructive_command` from command
+  patterns before falling back to the model, which scores `rm -rf / --no-preserve-root` at
+  0.07. Without this the offline Claude Code hook let destructive commands through.
+- Faster import: the TypeSafe SDK, httpx2 and transformers load only when a backend actually
+  makes a call, cutting `import jev_guard` by about 30% (measured 707 ms to 505 ms on a
+  Windows laptop). This matters most for the Claude Code hook, which starts a process per
+  tool call. `tests/unit/test_import_cost.py` keeps it that way.
+- `scripts/preflight.py`: one command that runs everything CI runs, plus a secret scan and a
+  clean-virtualenv install of the built wheel.
 - Scale: an answer cache (on by default), client-side rate limiting under TypeSafe's
   1,200/min, `jev_guard.parallel.run_with_guard` to check input while the LLM generates
   (zero added latency), and `ToolGuard(skip_calls=..., skip_results=...)`.

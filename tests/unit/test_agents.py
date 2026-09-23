@@ -49,9 +49,12 @@ def test_tool_call_is_an_output_check_with_call_state(fake_jev):
 
 
 def test_fits_user_request_is_skipped_without_a_request(fake_jev):
-    ToolGuard().check_tool_call("run_shell", {"command": "ls"})
+    v = ToolGuard().check_tool_call("run_shell", {"command": "ls"})
     assert "fits_user_request" not in last_questions(fake_jev)
     assert "user_request" not in last_state(fake_jev)
+    # Dropping those questions is not a context fallback: it used to add the reason
+    # "no context passed: used None output checks" to every tool-call verdict.
+    assert not any("no context passed" in reason for reason in v.reasons)
 
 
 @pytest.mark.parametrize("question", ["is_destructive", "touches_credentials"])

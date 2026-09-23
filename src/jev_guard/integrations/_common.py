@@ -10,9 +10,10 @@ import functools
 import inspect
 import json
 import logging
-from collections.abc import AsyncIterator, Awaitable, Callable, Iterable, Iterator, Mapping
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterable, Iterator
 from typing import TYPE_CHECKING, Any, ParamSpec, TypeVar, cast, overload
 
+from jev_guard._fields import field
 from jev_guard.errors import GuardBlockedError
 from jev_guard.guard import Guard
 from jev_guard.guards.streaming import achecked_stream, checked_stream
@@ -137,8 +138,8 @@ def text_of(content: Any) -> str:
     if isinstance(content, Iterable):
         parts: list[str] = []
         for part in content:
-            kind = _get(part, "type")
-            text = _get(part, "text")
+            kind = field(part, "type")
+            text = field(part, "text")
             if kind in (None, "text", "input_text", "output_text") and isinstance(text, str):
                 parts.append(text)
         return "\n".join(parts)
@@ -147,15 +148,9 @@ def text_of(content: Any) -> str:
 
 def last_user_text(messages: Iterable[Any]) -> str:
     for message in reversed(list(messages)):
-        if _get(message, "role") == "user":
-            return text_of(_get(message, "content"))
+        if field(message, "role") == "user":
+            return text_of(field(message, "content"))
     return ""
-
-
-def _get(obj: Any, key: str) -> Any:
-    if isinstance(obj, Mapping):
-        return obj.get(key)
-    return getattr(obj, key, None)
 
 
 def enforce(verdict: Verdict) -> Verdict:
@@ -267,18 +262,18 @@ def _items(value: Any) -> Iterable[Any]:
 def tool_calls_in(response: Any) -> list[ToolCall]:
     """The tool calls in an OpenAI (Chat Completions or Responses) or Anthropic response."""
     calls: list[ToolCall] = []
-    for choice in _items(_get(response, "choices")):  # OpenAI chat.completions
-        for call in _items(_get(_get(choice, "message"), "tool_calls")):
-            function = _get(call, "function")
-            name = str(_get(function, "name") or "")
-            calls.append((name, _parse_arguments(_get(function, "arguments"))))
-    for item in _items(_get(response, "output")):  # OpenAI Responses API
-        if _get(item, "type") == "function_call":
-            name = str(_get(item, "name") or "")
-            calls.append((name, _parse_arguments(_get(item, "arguments"))))
-    for block in _items(_get(response, "content")):  # Anthropic messages
-        if _get(block, "type") == "tool_use":
-            calls.append((str(_get(block, "name") or ""), _get(block, "input")))
+    for choice in _items(field(response, "choices")):  # OpenAI chat.completions
+        for call in _items(field(field(choice, "message"), "tool_calls")):
+            function = field(call, "function")
+            name = str(field(function, "name") or "")
+            calls.append((name, _parse_arguments(field(function, "arguments"))))
+    for item in _items(field(response, "output")):  # OpenAI Responses API
+        if field(item, "type") == "function_call":
+            name = str(field(item, "name") or "")
+            calls.append((name, _parse_arguments(field(item, "arguments"))))
+    for block in _items(field(response, "content")):  # Anthropic messages
+        if field(block, "type") == "tool_use":
+            calls.append((str(field(block, "name") or ""), field(block, "input")))
     return calls
 
 

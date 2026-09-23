@@ -200,8 +200,11 @@ class Guard:
             model=result.model,
             cost_usd=result.cost_usd,
         )
-        if policy is not self.policy:
-            note = f"no context passed: used {self.policy.context_fallback!r} output checks"
+        # Only the context fallback earns a note. Callers swap the policy for other reasons
+        # too (ToolGuard drops questions that need a user_request), and those used to render
+        # as "used None output checks".
+        if policy is not self.policy and self.policy.context_fallback is not None:
+            note = f"no context passed: used '{self.policy.context_fallback}' output checks"
             verdict = verdict.model_copy(update={"reasons": [*verdict.reasons, note]})
         return verdict
 

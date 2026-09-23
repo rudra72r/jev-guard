@@ -16,7 +16,9 @@ Two kinds of model:
 Tradeoffs versus Jev: no API, no cost, nothing leaves the machine, but answers are less
 nuanced and it is **much slower on CPU**. Measured on a 4-thread laptop CPU with the
 defaults: ~0.3 s for a specialist question, ~1.7 s per zero-shot yes/no question, and ~2.9 s
-for a 3-option choice, so a full `general` input check is about 5 s. A GPU, or the smaller
+for a 3-option choice, so a full `general` input check is about 7 s, after a one-time ~23 s
+model load in each process (the CLI pays it on every run; a server pays it once). A GPU, or
+the smaller
 ``local:MoritzLaurer/deberta-v3-xsmall-zeroshot-v1.1-all-33`` (roughly 3x faster, less
 accurate), cuts that down. Use it for offline work, batch scanning, and as a fallback when
 Jev is unreachable, not usually on a latency-critical path.
@@ -30,6 +32,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
+import re
 import threading
 import time
 from collections.abc import Callable, Mapping
@@ -75,7 +79,63 @@ class RegexSpecialist:
     nli_fallback: bool = True
 
 
-Answerer = Specialist | RegexSpecialist
+# Command shapes that are destructive by construction. The zero-shot model is close to blind
+# here — measured, it scores `rm -rf / --no-preserve-root` at 0.07 for "is destructive" — and
+# a coding agent's most dangerous question is exactly this one. These are deliberately narrow:
+# each has to name both a destructive verb and an unrecoverable target, because a false
+# positive on a `critical` question blocks someone's legitimate work.
+DESTRUCTIVE_PATTERNS: tuple[re.Pattern[str], ...] = tuple(
+    re.compile(pattern, re.IGNORECASE)
+    for pattern in (
+        # rm -rf against a root, home, or wildcard target
+        r"\brm\s+(?:-\w+\s+)*-\w*[rf]\w*[rf]?\w*\s+(?:/\s*$|/\s|~|\$HOME|\*|/\*)",
+        r"--no-preserve-root",
+        # overwriting or reformatting a device
+        r"\bmkfs(\.\w+)?\b",
+        r"\bdd\b[^|\n]*\bof=/dev/(?:sd|nvme|hd|disk)",
+        r">\s*/dev/(?:sd|nvme|hd|disk)\w*",
+        # Windows equivalents
+        r"\bformat\s+[a-z]:",
+        r"\b(?:del|rd|rmdir)\s+/[sq]\b[^|\n]*\b[a-z]:\\",
+        r"Remove-Item\b[^|\n]*-Recurse\b[^|\n]*-Force\b[^|\n]*[a-z]:\\\s*$",
+        # fork bomb
+        r":\(\)\s*\{\s*:\|:&\s*\}\s*;:",
+        # whole-database destruction
+        r"\bDROP\s+(?:DATABASE|SCHEMA|TABLE)\b",
+        r"\bTRUNCATE\s+TABLE\b",
+        r"\bDELETE\s+FROM\s+\w+\s*(?:;|$)",  # no WHERE clause
+        # infrastructure teardown
+        r"\bterraform\s+destroy\b",
+        r"\bkubectl\s+delete\s+(?:namespace|ns|all)\b",
+        r"\baws\s+s3\s+(?:rb|rm)\b[^|\n]*--(?:force|recursive)\b",
+        r"\bdocker\s+(?:system\s+prune\s+.*-a|volume\s+rm)\b",
+        # history rewriting a shared branch
+        r"\bgit\s+push\b[^|\n]*(?:--force\b(?!-with-lease)|-f\b)",
+        r"\bgit\s+(?:reset\s+--hard|clean\s+-\w*[fd]\w*[fd])",
+        # permission and ownership disasters
+        r"\bchmod\s+(?:-R\s+)?777\s+/(?:\s|$)",
+        r"\bchown\s+-R\b[^|\n]*\s/(?:\s|$)",
+    )
+)
+
+
+@dataclass(frozen=True, slots=True)
+class PatternSpecialist:
+    """Answers a question from literal patterns first, falling back to the model.
+
+    Same idea as ``RegexSpecialist``, for questions where the dangerous thing has a shape:
+    a matched pattern answers ``hit`` without running a model at all, and anything else is
+    put to the zero-shot model, so novel phrasings still get judged.
+    """
+
+    patterns: tuple[re.Pattern[str], ...]
+    field: str = "*"
+    hit: float = 0.95
+    miss: float = 0.02
+    nli_fallback: bool = True
+
+
+Answerer = Specialist | RegexSpecialist | PatternSpecialist
 
 DEFAULT_SPECIALISTS: dict[str, Answerer] = {
     "is_prompt_injection": Specialist(INJECTION_MODEL, "INJECTION", "user_message"),
@@ -83,7 +143,33 @@ DEFAULT_SPECIALISTS: dict[str, Answerer] = {
     "contains_injected_instructions": Specialist(INJECTION_MODEL, "INJECTION", "tool_result"),
     "contains_pii": RegexSpecialist(),
     "contains_secrets": RegexSpecialist(),
+    "is_destructive": PatternSpecialist(DESTRUCTIVE_PATTERNS),
+    "contains_destructive_command": PatternSpecialist(DESTRUCTIVE_PATTERNS),
 }
+
+
+def _quiet_transformers() -> None:
+    """Keep transformers' chatter off a caller's stderr.
+
+    Loading a model prints a weight-loading progress bar and assorted torch deprecation
+    warnings, which turn ``jev-guard check`` into a wall of someone else's logs. Downloads
+    still show progress — a 1.5 GB first run should not look frozen — and real errors still
+    surface. Set ``JEV_GUARD_LOCAL_VERBOSE=1`` to see everything.
+    """
+    if os.environ.get("JEV_GUARD_LOCAL_VERBOSE") == "1":
+        return
+    import logging  # noqa: PLC0415 (only when the local backend is used)
+    import warnings  # noqa: PLC0415
+
+    from transformers.utils import logging as hf_logging  # noqa: PLC0415
+
+    # transformers ships these untyped, and the package is absent in CI, where a
+    # `type: ignore` would itself be reported as unused.
+    quiet = cast("Any", hf_logging)
+    quiet.set_verbosity_error()
+    quiet.disable_progress_bar()
+    logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
+    warnings.filterwarnings("ignore", category=FutureWarning, module="torch.*")
 
 
 def _transformers_pipeline(task: str, model: str) -> Pipeline:
@@ -94,6 +180,7 @@ def _transformers_pipeline(task: str, model: str) -> Pipeline:
             "The local backend needs transformers and torch.",
             hint='pip install "jev-guard[local]"',
         ) from err
+    _quiet_transformers()
     # `task` is dynamic, so it can't match transformers' per-task overloads; and the import
     # is absent in CI, where a `type: ignore` would itself be flagged as unused.
     factory = cast("Any", pipeline)
@@ -177,12 +264,25 @@ class LocalBackend:
                 return JevAnswer(type="noul", noul=max(answer.noul, spec.miss))
         return JevAnswer(type="noul", noul=spec.miss)
 
+    def _pattern_answer(
+        self, spec: PatternSpecialist, text: str, question: Mapping[str, object]
+    ) -> JevAnswer:
+        if any(pattern.search(text) for pattern in spec.patterns):
+            return JevAnswer(type="noul", noul=spec.hit)
+        if spec.nli_fallback:  # no known shape: let the model judge the phrasing
+            answer = self._nli(question, text)
+            if answer is not None and answer.noul is not None:
+                return JevAnswer(type="noul", noul=max(answer.noul, spec.miss))
+        return JevAnswer(type="noul", noul=spec.miss)
+
     def _specialist(
         self, spec: Answerer, state: Mapping[str, Any], question: Mapping[str, object]
     ) -> JevAnswer:
         text = self._text_for(spec.field, state)
         if isinstance(spec, RegexSpecialist):
             return self._regex_answer(spec, text, question)
+        if isinstance(spec, PatternSpecialist):
+            return self._pattern_answer(spec, text, question)
         classify = self._pipeline("text-classification", spec.model)
         best = 0.0
         for window in _windows(text):

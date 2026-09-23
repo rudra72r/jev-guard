@@ -19,13 +19,20 @@ pip install -e ".[dev,docs]"
 ## Before every pull request
 
 ```bash
+python scripts/preflight.py --fast   # lint, types, tests, docs — no API key, nothing billed
+```
+
+That runs exactly what CI runs (on Python 3.10–3.12), or run the pieces yourself:
+
+```bash
 ruff check . && ruff format --check .
 mypy
 pytest -m "not integration"          # no API key needed, never calls Jev
 mkdocs build --strict                # if you touched docs/
 ```
 
-CI runs the same commands on Python 3.10–3.12.
+Before a release, drop `--fast` — the full run also builds the package and installs the
+wheel into a throwaway virtualenv to check that a plain `pip install jev-guard` works.
 
 ## Tests never spend money
 
@@ -57,7 +64,8 @@ Edit `scripts/build_golden_dataset.py` and run it. Every sample must:
 
 - Match the surrounding code. mypy strict on `src/`, docstrings on public functions.
 - Error messages say what happened and what to do next (`JevGuardError(message, hint=...)`).
-- The public API in `SPEC.md` Section 4 (`Guard`, `Policy`, `Verdict`) is frozen for 0.x.
+- The public API in [`notes/SPEC.md`](notes/SPEC.md) Section 4 (`Guard`, `Policy`, `Verdict`)
+  is frozen for 0.x.
   Add new capabilities in new modules rather than new `Guard` methods.
 - Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/).
 

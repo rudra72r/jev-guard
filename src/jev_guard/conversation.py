@@ -23,8 +23,9 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Any
 
+from jev_guard._fields import field
 from jev_guard.guard import Guard
-from jev_guard.integrations._common import _get, text_of
+from jev_guard.integrations._common import text_of
 from jev_guard.policies.base import Policy
 from jev_guard.types import QuestionSpec, Verdict
 
@@ -50,10 +51,10 @@ MULTI_TURN_INJECTION = QuestionSpec(
 def _turns(messages: Iterable[Any]) -> list[dict[str, str]]:
     turns = []
     for message in messages:
-        role = str(_get(message, "role") or "user").lower()
+        role = str(field(message, "role") or "user").lower()
         if role in _SKIPPED_ROLES:
             continue
-        text = text_of(_get(message, "content")).strip()
+        text = text_of(field(message, "content")).strip()
         if text:
             turns.append({"role": role, "content": text})
     return turns

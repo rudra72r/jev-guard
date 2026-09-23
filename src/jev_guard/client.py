@@ -7,30 +7,23 @@ lazily on first use: importing jev-guard or inspecting a policy never needs an A
 
 from __future__ import annotations
 
+import functools
 import os
 import threading
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
-import httpx2
-from typesafe_sdk import (
-    AsyncTypeSafeClient,
-    ChoiceAnswer,
-    NoulAnswer,
-    RetryPolicy,
-    ScoreAnswer,
-    SystemOneResponse,
-    TypeSafeAPIConnectionError,
-    TypeSafeAPITimeoutError,
-    TypeSafeAuthenticationError,
-    TypeSafeClient,
-    TypeSafeError,
-    TypeSafeInternalServerError,
-    TypeSafePermissionDeniedError,
-    TypeSafeRateLimitError,
-)
+if TYPE_CHECKING:  # the SDK costs ~0.6s to import; load it only when Jev is actually called
+    import httpx2
+    from typesafe_sdk import (
+        AsyncTypeSafeClient,
+        RetryPolicy,
+        SystemOneResponse,
+        TypeSafeClient,
+        TypeSafeError,
+    )
 
 from jev_guard.errors import (
     ConfigurationError,
@@ -45,6 +38,14 @@ from jev_guard.types import JevAnswer
 API_KEY_ENV = "TYPESAFE_API_KEY"
 
 WireQuestions = Mapping[str, Mapping[str, object]]
+
+
+@functools.cache
+def _sdk() -> Any:
+    """The TypeSafe SDK, imported on first use so ``import jev_guard`` stays fast."""
+    import typesafe_sdk  # noqa: PLC0415 (deliberately lazy)
+
+    return typesafe_sdk
 
 
 @dataclass(frozen=True, slots=True)
@@ -118,10 +119,10 @@ class JevClient:
             if self._sync is None:
                 key = self._resolve_key()
                 try:
-                    self._sync = TypeSafeClient(
+                    self._sync = _sdk().TypeSafeClient(
                         api_key=key, model=self._model, retry=self._retry, transport=self._transport
                     )
-                except TypeSafeError as err:
+                except _sdk().TypeSafeError as err:
                     raise _translate(err) from err
             return self._sync
 
@@ -130,13 +131,13 @@ class JevClient:
             if self._async is None:
                 key = self._resolve_key()
                 try:
-                    self._async = AsyncTypeSafeClient(
+                    self._async = _sdk().AsyncTypeSafeClient(
                         api_key=key,
                         model=self._model,
                         retry=self._retry,
                         transport=self._async_transport,
                     )
-                except TypeSafeError as err:
+                except _sdk().TypeSafeError as err:
                     raise _translate(err) from err
             return self._async
 
@@ -145,7 +146,7 @@ class JevClient:
         start = time.perf_counter()
         try:
             response = client.system_one(state=dict(state), questions=_plain(questions))
-        except TypeSafeError as err:
+        except _sdk().TypeSafeError as err:
             raise _translate(err) from err
         return _to_result(response, (time.perf_counter() - start) * 1000)
 
@@ -154,7 +155,7 @@ class JevClient:
         start = time.perf_counter()
         try:
             response = await client.system_one(state=dict(state), questions=_plain(questions))
-        except TypeSafeError as err:
+        except _sdk().TypeSafeError as err:
             raise _translate(err) from err
         return _to_result(response, (time.perf_counter() - start) * 1000)
 
@@ -169,10 +170,11 @@ def _plain(questions: WireQuestions) -> dict[str, Any]:
     return {name: dict(question) for name, question in questions.items()}
 
 
-def _to_answer(answer: NoulAnswer | ChoiceAnswer | ScoreAnswer) -> JevAnswer:
-    if isinstance(answer, NoulAnswer):
+def _to_answer(answer: Any) -> JevAnswer:
+    sdk = _sdk()
+    if isinstance(answer, sdk.NoulAnswer):
         return JevAnswer(type="noul", noul=answer.noul)
-    if isinstance(answer, ChoiceAnswer):
+    if isinstance(answer, sdk.ChoiceAnswer):
         return JevAnswer(
             type="choice",
             choice=answer.choice,
@@ -198,13 +200,17 @@ def _to_result(response: SystemOneResponse, latency_ms: float) -> JevResult:
 
 def _translate(err: TypeSafeError) -> JevGuardError:
     """Map SDK exceptions onto jev-guard's hierarchy, keeping the SDK message."""
+    sdk = _sdk()
     message = f"Jev request failed: {err}"
-    if isinstance(err, TypeSafeAuthenticationError | TypeSafePermissionDeniedError):
+    if isinstance(err, sdk.TypeSafeAuthenticationError | sdk.TypeSafePermissionDeniedError):
         return JevAuthenticationError(message)
-    if isinstance(err, TypeSafeRateLimitError):
+    if isinstance(err, sdk.TypeSafeRateLimitError):
         return JevRateLimitError(message)
     if isinstance(
-        err, TypeSafeAPITimeoutError | TypeSafeAPIConnectionError | TypeSafeInternalServerError
+        err,
+        sdk.TypeSafeAPITimeoutError
+        | sdk.TypeSafeAPIConnectionError
+        | sdk.TypeSafeInternalServerError,
     ):
         return JevUnavailableError(message)
     if "api key" in str(err).lower():
