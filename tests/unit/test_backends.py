@@ -15,10 +15,12 @@ from jev_guard import ConfigurationError, Guard, JevAPIError, backends
 from jev_guard.backends import (
     AnthropicJudge,
     CachingBackend,
+    CloudflareJevBackend,
     FallbackBackend,
     LocalBackend,
     OpenAICompatibleJudge,
     RateLimitedBackend,
+    RegexSpecialist,
     Specialist,
     from_spec,
     needs_typesafe_key,
@@ -478,6 +480,52 @@ def test_local_specialist_scans_long_text_in_windows():
     assert len(pipelines.classified) >= 5
 
 
+def test_local_answers_pii_with_regex_first_no_model_needed():
+    """Measured on the golden set: 1.00 precision / 0.80 recall, vs 0.20 recall zero-shot."""
+    pipelines = FakePipelines()
+    backend = LocalBackend(pipeline_factory=pipelines)
+    questions = {"contains_pii": {"type": "noul", "instructions": "pii?"}}
+    hit = backend.evaluate({"user_message": "mail me at a@example.com"}, questions)
+    assert hit.answers["contains_pii"].noul == 0.95
+    assert pipelines.loaded == []  # a pattern matched: no model was loaded at all
+
+
+def test_local_pii_falls_back_to_the_model_when_no_pattern_matches():
+    """Regex can't see a name or street address; the model gets a second look."""
+    pipelines = FakePipelines(zero_shot={"pii?": 0.77})
+    backend = LocalBackend(pipeline_factory=pipelines)
+    questions = {"contains_pii": {"type": "noul", "instructions": "pii?"}}
+    result = backend.evaluate(
+        {"user_message": "Ship it to Taylor Brooks, 742 Evergreen"}, questions
+    )
+    assert result.answers["contains_pii"].noul == 0.77
+    assert ("zero-shot-classification", backend.nli_model) in pipelines.loaded
+
+
+def test_local_pii_fallback_can_be_switched_off():
+    pipelines = FakePipelines()
+    backend = LocalBackend(
+        specialists={"contains_pii": RegexSpecialist(nli_fallback=False)},
+        pipeline_factory=pipelines,
+    )
+    questions = {"contains_pii": {"type": "noul", "instructions": "pii?"}}
+    assert (
+        backend.evaluate({"user_message": "no pii here"}, questions).answers["contains_pii"].noul
+        == 0.02
+    )
+    assert pipelines.loaded == []
+
+
+def test_local_regex_specialist_reads_its_field():
+    backend = LocalBackend(
+        specialists={"leak": RegexSpecialist(field="assistant_response", nli_fallback=False)},
+        pipeline_factory=FakePipelines(),
+    )
+    questions = {"leak": {"type": "noul", "instructions": "x"}}
+    state = {"user_message": "a@example.com", "assistant_response": "nothing here"}
+    assert backend.evaluate(state, questions).answers["leak"].noul == 0.02
+
+
 def test_local_nli_noul_uses_the_statement_as_hypothesis():
     pipelines = FakePipelines(zero_shot={"The user_message is an attack.": 0.77})
     backend = LocalBackend(specialists={}, pipeline_factory=pipelines)
@@ -514,6 +562,86 @@ def test_render_state():
         }
     )
     assert text == 'user_message: hi\nconversation: user: a\ntool_arguments: {"cmd": "ls"}'
+
+
+# --- Cloudflare gateway ---------------------------------------------------------------------
+
+CF_BODY = {
+    "model": "jev-1.13.0",
+    "answers": {
+        "is_urgent": {"type": "noul", "noul": 0.95},
+        "department": {
+            "type": "choice",
+            "choice": "billing",
+            "confidence": 0.8,
+            "probabilities": {"billing": 0.8, "technical": 0.2},
+        },
+        "frustration": {
+            "type": "score",
+            "score": 1.04,
+            "confidence": 0.94,
+            "probabilities": {"0": 0.2, "1": 0.6, "2": 0.2},
+        },
+    },
+    "usage": {"input_tokens": 426, "output_tokens": 73},
+}
+
+
+def test_cloudflare_backend_speaks_the_documented_protocol():
+    seen = []
+    backend = CloudflareJevBackend(
+        "acct-1", "cf-token", transport=httpx2.MockTransport(transport(body=CF_BODY, seen=seen))
+    )
+    result = backend.evaluate(STATE, ALL_KINDS)
+    request = seen[0]
+    sent = json.loads(request.content)
+    assert str(request.url) == "https://api.cloudflare.com/client/v4/accounts/acct-1/ai/run"
+    assert request.headers["authorization"] == "Bearer cf-token"
+    assert sent["model"] == "typesafe/jev"
+    assert sent["input"] == {"state": STATE, "questions": ALL_KINDS}  # jev-guard's own wire format
+    assert result.answers["is_urgent"].noul == 0.95
+    assert result.answers["department"].choice == "billing"
+    assert result.answers["frustration"].score == 1.04
+    assert result.input_tokens == 426
+    assert result.cost_usd == pytest.approx(426 * 0.042 / 1e6)
+    assert result.model == "jev-1.13.0 (cloudflare)"
+    assert not backend.needs_typesafe_key
+    backend.close()
+
+
+def test_cloudflare_handles_the_result_wrapper():
+    backend = CloudflareJevBackend(
+        "a",
+        "t",
+        transport=httpx2.MockTransport(transport(body={"result": CF_BODY, "success": True})),
+    )
+    assert backend.evaluate(STATE, ALL_KINDS).answers["is_urgent"].noul == 0.95
+
+
+def test_cloudflare_needs_its_credentials(monkeypatch):
+    monkeypatch.delenv("CLOUDFLARE_ACCOUNT_ID", raising=False)
+    monkeypatch.delenv("CLOUDFLARE_API_TOKEN", raising=False)
+    with pytest.raises(ConfigurationError, match="CLOUDFLARE_ACCOUNT_ID"):
+        CloudflareJevBackend().evaluate(STATE, NOUL)
+
+
+async def test_cloudflare_async_and_errors():
+    backend = CloudflareJevBackend(
+        "a", "t", async_transport=httpx2.MockTransport(transport(body=CF_BODY))
+    )
+    assert (await backend.aevaluate(STATE, ALL_KINDS)).answers["department"].confidence == 0.8
+    failing = CloudflareJevBackend(
+        "a", "t", transport=httpx2.MockTransport(transport(status=401, body={"errors": []}))
+    )
+    with pytest.raises(JevAuthenticationError):
+        failing.evaluate(STATE, NOUL)
+
+
+def test_cloudflare_spec(monkeypatch):
+    monkeypatch.setenv("CLOUDFLARE_ACCOUNT_ID", "from-env")
+    assert unwrap(from_spec("cloudflare")).account_id == "from-env"
+    assert unwrap(from_spec("cloudflare:explicit")).account_id == "explicit"
+    assert not needs_typesafe_key(from_spec("cloudflare"))
 
 
 # --- specs and wiring -----------------------------------------------------------------------

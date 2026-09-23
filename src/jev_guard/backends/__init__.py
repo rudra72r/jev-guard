@@ -17,6 +17,7 @@ Spec strings:
 | spec | backend |
 |---|---|
 | ``jev`` / ``jev:MODEL`` | TypeSafe Jev (``TYPESAFE_API_KEY``) |
+| ``cloudflare`` / ``cloudflare:ACCOUNT``| Jev via Cloudflare Workers AI, no TypeSafe account |
 | ``local`` / ``local:NLI_MODEL`` | local models (``pip install "jev-guard[local]"``) |
 | ``openai:MODEL`` | OpenAI as judge (``OPENAI_API_KEY``) |
 | ``ollama:MODEL`` | Ollama at ``http://localhost:11434/v1`` |
@@ -36,8 +37,9 @@ import threading
 
 from jev_guard.backends.cache import CachingBackend
 from jev_guard.backends.fallback import FallbackBackend
+from jev_guard.backends.gateways import CloudflareJevBackend
 from jev_guard.backends.judge import AnthropicJudge, OpenAICompatibleJudge
-from jev_guard.backends.local import LocalBackend, Specialist
+from jev_guard.backends.local import LocalBackend, RegexSpecialist, Specialist
 from jev_guard.backends.ratelimit import DEFAULT_REQUESTS_PER_MINUTE, RateLimitedBackend
 from jev_guard.client import JevBackend, JevClient
 from jev_guard.errors import ConfigurationError
@@ -46,11 +48,13 @@ __all__ = [
     "AnthropicJudge",
     "Backend",
     "CachingBackend",
+    "CloudflareJevBackend",
     "FallbackBackend",
     "JevClient",
     "LocalBackend",
     "OpenAICompatibleJudge",
     "RateLimitedBackend",
+    "RegexSpecialist",
     "Specialist",
     "from_spec",
     "get_backend",
@@ -78,13 +82,15 @@ def _int_env(name: str, default: int) -> int:
         raise ConfigurationError(f"{name} must be a whole number, got {raw!r}.") from err
 
 
-def _one(spec: str) -> Backend:
+def _one(spec: str) -> Backend:  # noqa: PLR0911 (one return per backend kind)
     kind, _, arg = spec.strip().partition(":")
     kind = kind.strip().lower()
     if kind == "jev":
         rpm = _int_env(RPM_ENV, DEFAULT_REQUESTS_PER_MINUTE)
         client = JevClient(model=arg or None)
         return RateLimitedBackend(client, rpm) if rpm > 0 else client
+    if kind == "cloudflare":
+        return CloudflareJevBackend(arg or None)
     if kind == "local":
         return LocalBackend(arg) if arg else LocalBackend()
     if kind == "openai" and arg:

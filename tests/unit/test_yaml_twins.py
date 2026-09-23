@@ -18,7 +18,7 @@ from jev_guard.types import JevAnswer, QuestionSpec
 
 ROOT = Path(__file__).resolve().parents[2]
 POLICY_DIR = ROOT / "policies"
-SAMPLES = ("strict", "permissive", "coding_agent_prod")
+SAMPLES = ("strict", "permissive", "coding_agent_prod", "general_local")
 
 
 def _load_exporter():

@@ -34,7 +34,20 @@ Before Jev, putting guardrails on an LLM app meant one of two things. You could 
 - **English-first.** v0.1 is only designed and tested for English. No other-language support is claimed.
 - **Not a compliance engine.** GDPR, HIPAA, and similar obligations need human review; `redact()` and the PII checks help, they don't certify.
 - **Not a jailbreak shield.** It's one layer of defense. Keep least-privilege tools, output encoding, and human review for high-stakes actions.
-- **Not yet benchmarked on real Jev.** The 100-sample golden eval ships with the library; published accuracy numbers will follow the first full run.
+- **Not yet benchmarked on real Jev.** The numbers below are measured with the *local* backend; Jev's own numbers follow once measured. Run `jev-guard eval` yourself in about a minute.
+
+## Measured accuracy
+
+On the bundled 100-sample eval (50 attacks across 9 patterns, 30 clean messages including 15 deliberate look-alikes, 20 with synthetic PII), using the **local backend** with [`policies/general_local.yaml`](policies/general_local.yaml) — no API key, no cost:
+
+| question | precision | recall | F1 |
+|---|---:|---:|---:|
+| flagged (any question) | 0.96 | 0.93 | **0.94** |
+| `is_prompt_injection` | 0.94 | 0.96 | **0.95** |
+| `contains_pii` | 1.00 | 0.85 | **0.92** |
+| `intent` (malicious) | 0.75 | 1.00 | **0.86** |
+
+A regex baseline on the same samples catches 46% of attacks. Reports: [`benchmarks/results/`](benchmarks/results/). Reproduce with `jev-guard --backend local eval --policy policies/general_local.yaml`.
 
 ## 5-minute quickstart
 

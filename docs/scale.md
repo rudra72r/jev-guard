@@ -12,7 +12,7 @@ of every response. Run them together instead:
 from jev_guard.parallel import run_with_guard
 
 result = await run_with_guard(guard, user_message, lambda: call_llm(user_message))
-reply = result.reply            # the LLM's answer, or the safe reply if it was blocked
+reply = result.reply  # the LLM's answer, or the safe reply if it was blocked
 ```
 
 The LLM starts immediately, and the check runs beside it. If the check blocks, the LLM call
@@ -61,8 +61,8 @@ what comes back:
 
 ```python
 tools = ToolGuard(
-    skip_calls=("Read", "Glob", "Grep"),   # read-only calls: safe to run unchecked
-    skip_results=(),                       # but their output can still carry injections
+    skip_calls=("Read", "Glob", "Grep"),  # read-only calls: safe to run unchecked
+    skip_results=(),  # but their output can still carry injections
 )
 ```
 

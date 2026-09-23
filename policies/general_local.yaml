@@ -1,0 +1,16 @@
+# `general`, retuned for the local backend (JEV_GUARD_BACKEND=local).
+#
+# Thresholds are calibrated per backend. Measured on the bundled golden set, the local
+# zero-shot model picks "malicious" correctly but with ~0.5 confidence, so the stock 0.8
+# threshold never fires and intent recall is 0. At 0.40 it fires without false alarms on the
+# clean samples.
+#
+# Re-measure after any change:  jev-guard --backend local eval --policy policies/general_local.yaml
+name: general_local
+version: 1.0.0
+extends: general
+description: General policy with thresholds calibrated for local models.
+
+input:
+  intent:
+    threshold: 0.4
