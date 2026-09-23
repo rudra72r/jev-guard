@@ -21,9 +21,10 @@ from typing import Any
 
 from benchmarks import datasets as ds
 from benchmarks.detectors import DEFAULT_JUDGE_MODEL, DEFAULT_JUDGE_PRICE, Detector, build
+from jev_guard import backends
 
 RESULTS = Path(__file__).resolve().parent / "results"
-FREE = {"regex"}
+FREE_PREFIXES = ("regex", "LLM Guard")  # no API spend; a free jev detector is detected by cost
 
 
 @dataclass(slots=True)
@@ -179,6 +180,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--judge-model", default=DEFAULT_JUDGE_MODEL)
     parser.add_argument("--judge-price-in", type=float, default=DEFAULT_JUDGE_PRICE[0])
     parser.add_argument("--judge-price-out", type=float, default=DEFAULT_JUDGE_PRICE[1])
+    parser.add_argument(
+        "--backend",
+        default=None,
+        help="Backend for the jev detector: jev, local, ollama:MODEL, ... "
+        "(see jev_guard.backends).",
+    )
     parser.add_argument("--run", action="store_true", help="Call paid APIs (otherwise free only).")
     parser.add_argument("--max-cost", type=float, default=1.00, help="Total USD cap.")
     parser.add_argument("--concurrency", type=int, default=4)
@@ -193,6 +200,8 @@ async def main(argv: list[str] | None = None) -> int:
     if unknown:
         print(f"Unknown dataset(s): {unknown}. Choose from {list(ds.DATASETS)}.")
         return 1
+    if args.backend:
+        backends.set_backend(args.backend)
     samples = ds.load(names, limit=args.limit)
     detectors = build(
         [d.strip() for d in args.detectors.split(",") if d.strip()],
@@ -204,8 +213,8 @@ async def main(argv: list[str] | None = None) -> int:
     ready: list[Detector] = []
     skipped: dict[str, str] = {}
     for detector in detectors:
-        paid = detector.name not in FREE
-        reason = detector.available() or (None if args.run or not paid else "needs --run")
+        free = detector.name.startswith(FREE_PREFIXES) or detector.estimate_cost("probe") == 0.0
+        reason = detector.available() or (None if args.run or free else "needs --run")
         if reason:
             skipped[detector.name] = reason
         else:

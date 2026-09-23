@@ -24,7 +24,9 @@ verdict returned is the most severe window's.
 
 from __future__ import annotations
 
+import fnmatch
 import json
+from collections.abc import Iterable
 from types import TracebackType
 from typing import Any
 
@@ -32,7 +34,7 @@ from jev_guard.guard import Guard
 from jev_guard.integrations._common import ToolCall, text_of, tool_calls_in
 from jev_guard.policies.agent_tools import NEEDS_USER_REQUEST
 from jev_guard.policies.base import Policy
-from jev_guard.types import Verdict
+from jev_guard.types import GuardStage, Verdict
 
 __all__ = ["ToolCall", "ToolGuard", "tool_calls_in"]
 
@@ -65,10 +67,42 @@ def _worst(verdicts: list[Verdict]) -> Verdict:
 
 
 class ToolGuard:
-    """Checks tool calls and tool results with a tool policy (``agent_tools`` by default)."""
+    """Checks tool calls and tool results with a tool policy (``agent_tools`` by default).
 
-    def __init__(self, policy: str | Policy = "agent_tools") -> None:
+    ``skip_calls`` / ``skip_results`` are tool-name patterns (``fnmatch`` style, e.g.
+    ``"Read"`` or ``"mcp__docs__*"``) whose calls or results aren't checked. That's useful at
+    scale: a read-only tool's *call* rarely needs a check, but its *result* (a web page, a
+    README) is exactly where indirect injection comes from. Skipped checks cost nothing and
+    say so in ``verdict.reasons``.
+    """
+
+    def __init__(
+        self,
+        policy: str | Policy = "agent_tools",
+        *,
+        skip_calls: Iterable[str] = (),
+        skip_results: Iterable[str] = (),
+    ) -> None:
         self.guard = Guard(policy=policy)
+        self.skip_calls = tuple(skip_calls)
+        self.skip_results = tuple(skip_results)
+
+    def _skip(self, tool_name: str, patterns: tuple[str, ...], stage: GuardStage) -> Verdict | None:
+        if not any(fnmatch.fnmatchcase(tool_name, p) for p in patterns):
+            return None
+        kind = "calls" if stage == "output" else "results"
+        return Verdict(
+            action="allow",
+            stage=stage,
+            confidence=1.0,
+            raw_answers={},
+            reasons=[f"skipped: {tool_name} {kind} are on the skip list"],
+            latency_ms=0.0,
+            input_tokens_used=0,
+            estimated_cost_usd=0.0,
+            policy_name=self.policy.name,
+            policy_version=self.policy.version,
+        )
 
     @property
     def policy(self) -> Policy:
@@ -105,6 +139,9 @@ class ToolGuard:
         self, tool_name: str, arguments: Any, user_request: str | None = None
     ) -> Verdict:
         """Check a tool call before running it. ``arguments``: a dict, JSON string, or text."""
+        skipped = self._skip(tool_name, self.skip_calls, "output")
+        if skipped is not None:
+            return skipped
         state = self._call_state(tool_name, arguments, user_request)
         blank = not tool_name.strip() and not _as_text(arguments).strip()
         return self.guard._run("output", state, blank, self._policy_for(user_request))
@@ -113,6 +150,9 @@ class ToolGuard:
         self, tool_name: str, result: Any, user_request: str | None = None
     ) -> Verdict:
         """Check a tool's result before the model reads it."""
+        skipped = self._skip(tool_name, self.skip_results, "input")
+        if skipped is not None:
+            return skipped
         states = self._result_states(tool_name, result, user_request)
         blank = not _as_text(result).strip()
         return _worst([self.guard._run("input", s, blank, self.policy) for s in states])
@@ -122,6 +162,9 @@ class ToolGuard:
     async def acheck_tool_call(
         self, tool_name: str, arguments: Any, user_request: str | None = None
     ) -> Verdict:
+        skipped = self._skip(tool_name, self.skip_calls, "output")
+        if skipped is not None:
+            return skipped
         state = self._call_state(tool_name, arguments, user_request)
         blank = not tool_name.strip() and not _as_text(arguments).strip()
         return await self.guard._arun("output", state, blank, self._policy_for(user_request))
@@ -129,6 +172,9 @@ class ToolGuard:
     async def acheck_tool_result(
         self, tool_name: str, result: Any, user_request: str | None = None
     ) -> Verdict:
+        skipped = self._skip(tool_name, self.skip_results, "input")
+        if skipped is not None:
+            return skipped
         states = self._result_states(tool_name, result, user_request)
         blank = not _as_text(result).strip()
         return _worst([await self.guard._arun("input", s, blank, self.policy) for s in states])

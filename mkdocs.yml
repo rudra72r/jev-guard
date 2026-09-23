@@ -40,6 +40,8 @@ nav:
       - Policies: policies.md
       - Streaming: streaming.md
       - Agents and multi-turn: agents.md
+      - Backends: backends.md
+      - Running at scale: scale.md
       - Telemetry: telemetry.md
       - PII redaction: redaction.md
       - Command line: cli.md

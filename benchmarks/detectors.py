@@ -10,7 +10,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Protocol
 
-from jev_guard import Guard
+from jev_guard import Guard, backends
 from jev_guard.cost import estimate_cost_usd, estimate_tokens
 from jev_guard.guards.input_guard import input_state
 
@@ -85,22 +85,31 @@ class RegexDetector:
 
 
 class JevGuardDetector:
-    """jev-guard input check; an attack means the verdict blocks (review doesn't count)."""
+    """jev-guard input check; an attack means the verdict blocks (review doesn't count).
+
+    Uses whatever backend is configured (``--backend``), so this measures jev-guard on Jev,
+    on local models, or through an LLM judge with the same policy and rules.
+    """
 
     def __init__(self, policy: str = "general") -> None:
-        self.name = f"jev-guard ({policy})"
+        backend = backends.get_backend()
+        self.name = f"jev-guard ({policy}, {getattr(backend, 'name', 'jev')})"
         self.guard = Guard(policy=policy)
+        self._backend = backend
 
     def available(self) -> str | None:
-        return (
-            None if os.environ.get("TYPESAFE_API_KEY", "").strip() else "TYPESAFE_API_KEY not set"
-        )
+        if (
+            backends.needs_typesafe_key(self._backend)
+            and not os.environ.get("TYPESAFE_API_KEY", "").strip()
+        ):
+            return "TYPESAFE_API_KEY not set (or use --backend local)"
+        return None
 
     def estimate_cost(self, text: str) -> float:
         questions = {n: q.to_wire() for n, q in self.guard.policy.input.items()}
-        return estimate_cost_usd(
-            estimate_tokens({"state": input_state(text), "questions": questions})
-        )
+        tokens = estimate_tokens({"state": input_state(text), "questions": questions})
+        price = backends.price_per_million(self._backend)
+        return estimate_cost_usd(tokens) * (price / 0.042)
 
     async def detect(self, text: str) -> Detection:
         verdict = await self.guard.acheck_input(text)

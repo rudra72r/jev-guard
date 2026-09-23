@@ -17,7 +17,7 @@ from rich.console import Console
 from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn
 from rich.table import Column, Table
 
-from jev_guard import __version__
+from jev_guard import __version__, backends
 from jev_guard.agents import ToolGuard
 from jev_guard.errors import ConfigurationError, JevGuardError, PolicyError
 from jev_guard.eval.golden import (
@@ -40,6 +40,7 @@ from jev_guard.policies import BUILTIN_POLICIES, Policy
 from jev_guard.policies.loader import dump_policy, validate_policy_file
 from jev_guard.types import Verdict
 
+JEV_PRICE = 0.042  # what the estimators assume; see jev_guard.cost
 EXIT_USER_ERROR = 1
 EXIT_FAIL_ON = 3
 EXIT_BELOW_MINIMUM = 4
@@ -105,12 +106,29 @@ def _version(value: bool) -> None:
 @app.callback()
 def root(
     debug: Annotated[bool, typer.Option("--debug", help="Show full tracebacks.")] = False,
+    backend: Annotated[
+        str | None,
+        typer.Option(
+            "--backend",
+            help="What answers the checks: jev, local, ollama:MODEL, openai:MODEL, "
+            "anthropic:MODEL, or a chain like jev,local. Default: $JEV_GUARD_BACKEND or jev.",
+        ),
+    ] = None,
     version: Annotated[  # noqa: ARG001 (handled by the eager callback)
         bool,
         typer.Option("--version", callback=_version, is_eager=True, help="Show the version."),
     ] = False,
 ) -> None:
     _state["debug"] = debug
+    if backend is not None:
+        try:
+            backends.set_backend(backend)
+        except JevGuardError as error:
+            if debug:
+                raise
+            err.print(f"[bold red]error:[/] {error.args[0]}", highlight=False)
+            err.print(f"  [bold]next step:[/] {error.hint}", highlight=False)
+            raise typer.Exit(EXIT_USER_ERROR) from None
 
 
 # --- check --------------------------------------------------------------------------------
@@ -167,17 +185,24 @@ def check(
 # --- scan ---------------------------------------------------------------------------------
 
 
+def _for_backend(jev_estimate: float) -> float:
+    """Re-price a Jev-based estimate for the backend in use (0 for local models)."""
+    return jev_estimate * (backends.price_per_million(backends.get_backend()) / JEV_PRICE)
+
+
 def _require_budget_and_key(estimate: float, max_cost: float) -> None:
-    """Refuse before any Jev call if it would cost too much or can't authenticate."""
+    """Refuse before any call if it would cost too much or can't authenticate."""
     if estimate > max_cost:
         raise ConfigurationError(
             f"Estimated cost ${estimate:.4f} is over --max-cost ${max_cost:.4f}.",
             hint=f"Re-run with --max-cost {max(estimate * 1.2, 0.01):.2f}, or use less data.",
         )
-    if not os.environ.get("TYPESAFE_API_KEY", "").strip():
+    backend = backends.get_backend()
+    if backends.needs_typesafe_key(backend) and not os.environ.get("TYPESAFE_API_KEY", "").strip():
         raise ConfigurationError(
             "TYPESAFE_API_KEY is not set, so jev-guard can't reach Jev.",
-            hint="Set TYPESAFE_API_KEY (https://console.typesafe.ai/keys), or use --dry-run.",
+            hint="Set TYPESAFE_API_KEY (https://console.typesafe.ai/keys), use --dry-run, "
+            "or pick another backend with --backend local.",
         )
 
 
@@ -242,7 +267,7 @@ def scan(
         )
 
     resolved = _resolve_policy(policy)
-    estimate = estimate_scan_cost(resolved, log.records)
+    estimate = _for_backend(estimate_scan_cost(resolved, log.records))
     checks = sum(1 for r in log.records if r.input.strip()) + sum(
         1 for r in log.records if r.output and r.output.strip()
     )
@@ -344,7 +369,7 @@ def eval_command(
     """Score a policy on the labelled golden dataset. Exits 4 if a minimum isn't met."""
     golden = load_golden(dataset)
     resolved = _resolve_policy(policy or (golden.manifest.policy if golden.manifest else None))
-    estimate = estimate_eval_cost(resolved, golden)
+    estimate = _for_backend(estimate_eval_cost(resolved, golden))
     out.print(
         f"{len(golden.samples)} samples from {golden.source} with policy "
         f"[bold]{resolved.name}[/]: estimated [bold]${estimate:.4f}[/]",
@@ -415,18 +440,32 @@ def _print_eval_summary(report: dict[str, Any]) -> None:
 # --- hook ---------------------------------------------------------------------------------
 
 
+def _patterns(value: str) -> tuple[str, ...]:
+    return tuple(part.strip() for part in value.split(",") if part.strip())
+
+
 @hook_app.command("claude-code")
 def hook_claude_code(
     policy: Annotated[
         str, typer.Option("--policy", "-p", help="Tool policy: builtin name or YAML path.")
     ] = "agent_tools",
     fail_closed: Annotated[
-        bool, typer.Option("--fail-closed", help="Block when Jev can't be reached.")
+        bool, typer.Option("--fail-closed", help="Block when the backend can't be reached.")
     ] = False,
+    skip_calls: Annotated[
+        str, typer.Option(help="Tool patterns whose calls aren't checked, comma-separated.")
+    ] = "",
+    skip_results: Annotated[
+        str, typer.Option(help="Tool patterns whose results aren't checked, comma-separated.")
+    ] = "",
 ) -> None:
     """Claude Code PreToolUse / PostToolUse hook. Reads the hook event JSON on stdin."""
     try:
-        tool_guard = ToolGuard(policy)
+        tool_guard = ToolGuard(
+            policy,
+            skip_calls=_patterns(skip_calls),
+            skip_results=_patterns(skip_results),
+        )
     except JevGuardError as error:  # a bad policy must be visible, and must not fail open
         sys.stderr.write(f"jev-guard: {error.args[0]}\n")
         raise typer.Exit(BLOCK_EXIT) from None

@@ -34,6 +34,14 @@ First release.
 - `jev-guard` CLI: `check`, `scan` (native, Langfuse, and Arize JSONL; HTML, JSON, and
   Markdown reports), `eval`, and `policy list/show/validate`, with cost estimates,
   `--dry-run`, and `--max-cost` caps.
+- Pluggable backends (`jev_guard.backends`): Jev (default), local transformer models
+  (offline and free), an LLM judge on any OpenAI-compatible server or Anthropic, and
+  fallback chains like `jev,local`. Selected process-wide with `set_backend()`,
+  `JEV_GUARD_BACKEND`, or `jev-guard --backend`; policies, verdicts, CLI, and integrations
+  are unchanged.
+- Scale: an answer cache (on by default), client-side rate limiting under TypeSafe's
+  1,200/min, `jev_guard.parallel.run_with_guard` to check input while the LLM generates
+  (zero added latency), and `ToolGuard(skip_calls=..., skip_results=...)`.
 - Agent guarding: `jev_guard.agents.ToolGuard` checks tool calls before they run and tool
   results before the model reads them (windowed for long results), with a new builtin
   `agent_tools` policy. `wrap_openai` / `wrap_anthropic` take `tool_policy=` to check every

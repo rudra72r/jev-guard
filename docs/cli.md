@@ -7,6 +7,17 @@ jev-guard --help
 
 Every command exits 0 on success and 1 on a user error, printing a one-line "next step". Tracebacks only appear with `--debug`.
 
+Global options:
+
+```bash
+jev-guard --backend local eval        # jev (default), local, ollama:MODEL, jev,local, ...
+jev-guard --debug scan logs.jsonl     # full tracebacks
+```
+
+`--backend` (or `JEV_GUARD_BACKEND`) applies to every command. With a backend that needs no
+TypeSafe key, `scan` and `eval` don't ask for one and estimate the matching cost: $0 for
+local models. See [Backends](backends.md).
+
 ## `check`: one-off checks
 
 ```bash
@@ -47,6 +58,17 @@ The builtin set has 100 hand-written samples:
 The command prints precision / recall / F1 per question and the total cost, then lists every mistake by sample ID. It **exits 4** if any score falls below the minimum in the dataset's `manifest.json`, so CI can tell a regression from a typo. A full run costs about $0.001.
 
 Custom datasets use the same line format as the builtin one: `{"id", "input", "output"?, "context"?, "label": {question: bool}, "category"?}`.
+
+## `hook claude-code`
+
+```bash
+jev-guard hook claude-code [--policy agent_tools] [--fail-closed]
+                           [--skip-calls "Read,Glob"] [--skip-results "Glob"]
+```
+
+Claude Code's PreToolUse / PostToolUse hook: it blocks dangerous tool calls, asks you about
+risky ones, and stops a turn when a tool's output tries to hijack the agent. See the
+[recipe](recipes/claude-code-agent.md).
 
 ## `policy`
 

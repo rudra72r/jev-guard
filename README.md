@@ -122,6 +122,22 @@ tools.check_tool_result("fetch_url", page, user_request=task)  # indirect inject
 
 In Claude Code, `jev-guard hook claude-code` does this for every tool call ([recipe](docs/recipes/claude-code-agent.md)).
 
+## Works with any model, online or offline
+
+Jev is the default, not a lock-in. The same policies and verdicts run on local models or on
+an LLM judge, and can fall back automatically:
+
+```bash
+export JEV_GUARD_BACKEND=local                 # offline, free, nothing leaves the machine
+export JEV_GUARD_BACKEND=ollama:llama3.1       # any OpenAI-compatible server (Ollama, vLLM, LM Studio)
+export JEV_GUARD_BACKEND=jev,local             # Jev, falling back to local if it's unreachable
+```
+
+No code changes: `Guard`, the wrappers, the hook and the CLI all follow. See
+[Backends](docs/backends.md). At scale, input checks can run [in parallel with the LLM
+call](docs/scale.md) for zero added latency, and repeated checks are cached and rate-limited
+for you.
+
 Also included: a [LangChain callback](docs/recipes/rag-grounding.md), a [LiteLLM proxy guardrail](docs/recipes/litellm-proxy.md), [OpenTelemetry spans](docs/telemetry.md), [`redact()`](docs/redaction.md) for PII, and a CLI (`pip install "jev-guard[cli]"`) with `check`, `scan`, `eval`, and `policy`.
 
 ## Policies at a glance

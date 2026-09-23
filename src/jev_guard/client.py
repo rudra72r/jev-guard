@@ -49,12 +49,17 @@ WireQuestions = Mapping[str, Mapping[str, object]]
 
 @dataclass(frozen=True, slots=True)
 class JevResult:
-    """One Jev call's answers plus the metadata jev-guard needs for cost and telemetry."""
+    """One backend call's answers plus the metadata jev-guard needs for cost and telemetry.
+
+    ``cost_usd`` is set by backends that aren't priced like Jev (an LLM judge, a local model,
+    a cache hit); when it's None the cost is computed from ``input_tokens`` at Jev's price.
+    """
 
     answers: dict[str, JevAnswer]
     input_tokens: int | None
     model: str
     latency_ms: float
+    cost_usd: float | None = None
 
 
 class JevBackend(Protocol):
@@ -73,6 +78,13 @@ class JevClient:
     ``api_key`` defaults to ``TYPESAFE_API_KEY``. ``transport``, ``async_transport`` and
     ``retry`` exist for tests.
     """
+
+    needs_typesafe_key = True
+    input_price_per_million = 0.042
+
+    @property
+    def name(self) -> str:
+        return f"jev:{self._model}" if self._model else "jev"
 
     def __init__(
         self,

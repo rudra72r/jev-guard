@@ -246,7 +246,7 @@ class Policy(BaseModel):
                 return self.suggested_responses[name]
         return self.default_suggested_response
 
-    def build_verdict(
+    def build_verdict(  # noqa: PLR0913 (keyword-only call metadata)
         self,
         stage: GuardStage,
         answers: Mapping[str, JevAnswer],
@@ -254,8 +254,10 @@ class Policy(BaseModel):
         latency_ms: float,
         input_tokens: int,
         model: str | None,
+        cost_usd: float | None = None,
     ) -> Verdict:
         result = self.aggregate(stage, answers)
+        cost = cost_usd if cost_usd is not None else estimate_cost_usd(input_tokens, model)
         return Verdict(
             action=result.action,
             stage=stage,
@@ -264,7 +266,7 @@ class Policy(BaseModel):
             reasons=result.reasons,
             latency_ms=latency_ms,
             input_tokens_used=input_tokens,
-            estimated_cost_usd=estimate_cost_usd(input_tokens, model),
+            estimated_cost_usd=cost,
             suggested_response=(
                 self.suggested_response_for(result.fired) if result.action == "block" else None
             ),

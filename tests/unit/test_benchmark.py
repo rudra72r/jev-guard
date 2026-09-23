@@ -154,7 +154,7 @@ async def test_main_free_path_runs_regex_and_skips_paid(monkeypatch, tmp_path, c
     )
     out = capsys.readouterr().out
     assert code == 0
-    assert "skipped jev-guard (general): TYPESAFE_API_KEY not set" in out
+    assert "skipped jev-guard (general, jev): TYPESAFE_API_KEY not set" in out
     assert "skipped LLM judge" in out
     assert "| regex |" in out
     saved = json.loads(next(tmp_path.glob("*.json")).read_text(encoding="utf-8"))
@@ -164,7 +164,7 @@ async def test_main_free_path_runs_regex_and_skips_paid(monkeypatch, tmp_path, c
 async def test_main_paid_detectors_need_run_flag(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("TYPESAFE_API_KEY", "sk-test")
     await bench.main(["--datasets", "golden", "--detectors", "jev", "--out", str(tmp_path)])
-    assert "skipped jev-guard (general): needs --run" in capsys.readouterr().out
+    assert "skipped jev-guard (general, jev): needs --run" in capsys.readouterr().out
 
 
 async def test_main_refuses_over_budget(monkeypatch, tmp_path, capsys, fake_jev):

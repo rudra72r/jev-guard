@@ -8,8 +8,8 @@ from collections.abc import AsyncIterable, AsyncIterator, Callable, Iterable, Ma
 from types import TracebackType
 from typing import Any
 
-from jev_guard import telemetry
-from jev_guard.client import JevBackend, JevClient, JevResult
+from jev_guard import backends, telemetry
+from jev_guard.client import JevBackend, JevResult
 from jev_guard.cost import estimate_tokens
 from jev_guard.errors import PolicyError
 from jev_guard.guards.input_guard import input_state
@@ -22,8 +22,9 @@ DEFAULT_POLICY_ENV = "JEV_GUARD_DEFAULT_POLICY"
 
 logger = logging.getLogger("jev_guard")
 
-# Tests replace this to run Guard against a fake Jev. Not part of the public API.
-_backend_factory: Callable[[], JevBackend] = JevClient
+# Where Guards get their backend: the process-wide one from ``jev_guard.backends`` (Jev by
+# default). Tests replace this with a fake. Not part of the public API.
+_backend_factory: Callable[[], JevBackend] = backends.get_backend
 
 
 def _resolve_policy(policy: str | Policy | None) -> Policy:
@@ -197,6 +198,7 @@ class Guard:
             latency_ms=result.latency_ms,
             input_tokens=tokens,
             model=result.model,
+            cost_usd=result.cost_usd,
         )
         if policy is not self.policy:
             note = f"no context passed: used {self.policy.context_fallback!r} output checks"

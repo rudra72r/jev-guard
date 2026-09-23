@@ -79,4 +79,20 @@ def _no_ambient_config(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureR
     """Keep unit tests independent of the developer's shell environment."""
     if request.node.get_closest_marker("integration"):
         return
-    monkeypatch.delenv("JEV_GUARD_DEFAULT_POLICY", raising=False)
+    for name in (
+        "JEV_GUARD_DEFAULT_POLICY",
+        "JEV_GUARD_BACKEND",
+        "JEV_GUARD_CACHE_SIZE",
+        "JEV_GUARD_MAX_RPM",
+    ):
+        monkeypatch.delenv(name, raising=False)
+
+
+@pytest.fixture(autouse=True)
+def _reset_backend():
+    """No test may leak a process-wide backend into another."""
+    from jev_guard import backends  # noqa: PLC0415
+
+    backends.set_backend(None)
+    yield
+    backends.set_backend(None)
