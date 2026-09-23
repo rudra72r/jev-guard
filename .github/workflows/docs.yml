@@ -1,0 +1,39 @@
+name: Docs
+
+# Publishes the mkdocs site to the gh-pages branch on every push to main. To serve it,
+# enable GitHub Pages once (Settings -> Pages -> Deploy from a branch -> gh-pages / root);
+# until then this workflow just keeps the branch up to date. The site URL is in mkdocs.yml.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+      - ".github/workflows/docs.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: docs
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # gh-deploy commits to gh-pages, so it needs the history
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[docs]"
+      - name: Deploy
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mkdocs gh-deploy --force

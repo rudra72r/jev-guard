@@ -2,7 +2,7 @@
 
 About 15 minutes from install to a measured result.
 
-## 1. Install and set your key
+## 1. Install and pick a backend
 
 ```bash
 pip install "jev-guard[cli]"
@@ -10,6 +10,14 @@ export TYPESAFE_API_KEY=sk-...
 ```
 
 Get a key at [console.typesafe.ai/keys](https://console.typesafe.ai/keys), the only official source. `Guard()` doesn't need the key until the first check, so importing jev-guard and inspecting policies works without one.
+
+!!! tip "No TypeSafe account?"
+    Signups have been closed at times since launch. Everything below works offline —
+    `pip install "jev-guard[local]"` and `export JEV_GUARD_BACKEND=local`, no key and no
+    cost — or through Cloudflare Workers AI. See [Backends](backends.md). The offline models
+    are slower (~7 s a check) and slightly less accurate, so retune thresholds with
+    [`policies/general_local.yaml`](https://github.com/rudra72r/jev-guard/blob/main/policies/general_local.yaml)
+    as a starting point.
 
 ## 2. Try it from the shell
 

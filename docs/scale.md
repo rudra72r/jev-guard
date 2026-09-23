@@ -80,7 +80,7 @@ jev-guard hook claude-code --skip-calls "Read,Glob,Grep"
 | cache hit | 0 ms |
 | Jev | 70–500 ms |
 | LLM judge | 0.3–3 s, depending on model and host |
-| local models | ~6 s per check on a 4-thread CPU; much faster on a GPU |
+| local models | ~7 s per check on a 4-thread CPU after a one-time ~23 s model load; much faster on a GPU |
 
 For streamed responses, raise `stream_check_every` on long outputs; see
 [Streaming](streaming.md).
