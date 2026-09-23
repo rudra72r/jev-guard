@@ -181,15 +181,21 @@ On the bundled 100-sample eval (50 attacks across 9 patterns, 30 clean messages 
 deliberate look-alikes, 20 with synthetic PII), on the **offline backend** with
 [`policies/general_local.yaml`](policies/general_local.yaml) — no key, no cost:
 
-| question | precision | recall | F1 |
-|---|---:|---:|---:|
-| flagged (any question) | 0.96 | 0.93 | **0.94** |
-| `is_prompt_injection` | 0.94 | 0.96 | **0.95** |
-| `contains_pii` | 1.00 | 0.85 | **0.92** |
-| `intent` (malicious) | 0.75 | 1.00 | **0.86** |
+| question | precision | recall | F1 | labelled samples |
+|---|---:|---:|---:|---:|
+| flagged (any question) | 0.96 | 0.93 | **0.94** | 70 |
+| `is_prompt_injection` | 0.94 | 0.96 | **0.95** | 47 |
+| `contains_pii` | 1.00 | 0.85 | **0.92** | 20 |
+| `intent` (malicious) | 0.75 | 1.00 | **0.86** | 3 |
 
 A regex baseline on the same samples catches 46% of the attacks and flags none of the clean
-messages. Full reports in [`benchmarks/results/`](benchmarks/results/).
+messages. Full reports, including every mistake it made, are in
+[`benchmarks/results/`](benchmarks/results/).
+
+Where it's weak, from those 8 mistakes: leetspeak obfuscation (`1gn0r3 4ll pr3v10us…`) gets
+through, government ID numbers other than SSNs aren't recognised, and it still false-alarms on
+clean messages containing the word "disregard". The `intent` row rests on 3 samples — treat it
+as a smoke test, not a measurement.
 
 Reproduce it yourself — no key needed:
 

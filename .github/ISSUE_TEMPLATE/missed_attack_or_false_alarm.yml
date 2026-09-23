@@ -48,5 +48,8 @@ body:
   - type: input
     id: version
     attributes:
-      label: jev-guard version and Jev model
-      placeholder: "jev-guard 0.1.0, jev-1.13.0"
+      label: jev-guard version and backend
+      description: >-
+        The backend matters as much as the policy: thresholds are calibrated per backend, and
+        a miss on local models often isn't a miss on Jev.
+      placeholder: "jev-guard 0.1.0, backend jev:jev-1.13.0 (or local, ollama:llama3.1, ...)"

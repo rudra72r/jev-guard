@@ -8,7 +8,7 @@ into Claude Code's tool hooks with one command.
 
 ```bash
 pip install "jev-guard[cli]"
-export TYPESAFE_API_KEY=sk-...
+export TYPESAFE_API_KEY=sk-...   # see "Backend" below before choosing something else
 ```
 
 Add the hooks to `.claude/settings.json` in your project (or `~/.claude/settings.json` for
@@ -54,6 +54,11 @@ prompt injection from web pages, READMEs, issues, and MCP servers.
 - **Fail closed:** `jev-guard hook claude-code --fail-closed` blocks when Jev can't be
   reached. By default the hook fails open (the tool runs, and a note goes to Claude Code's
   debug log), so a Jev outage doesn't stop your work.
+- **Backend:** a hook runs as a *fresh process on every tool call*, so per-process startup is
+  the whole latency budget. Jev (70–500 ms) is the right fit. The offline backend is not:
+  it reloads its models every time, about 23 s, which alone would exceed the `timeout: 30`
+  above. If you want to stay off a hosted API, point the hook at a local server instead —
+  `JEV_GUARD_BACKEND=ollama:llama3.1` keeps the model resident between calls.
 - **Your own policy:** `--policy ./my_agent.yaml`, starting from `extends: agent_tools`.
 - **Cost:** each checked tool use is one Jev call (about $0.00002), and large outputs are
   checked in 40,000-character windows. Narrow the matchers if you want fewer checks.
