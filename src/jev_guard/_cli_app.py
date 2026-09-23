@@ -14,6 +14,7 @@ from typing import Annotated, Any, ParamSpec, TypeVar
 
 import typer
 from rich.console import Console
+from rich.markup import escape
 from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn
 from rich.table import Column, Table
 
@@ -80,6 +81,13 @@ class FailOn(str, Enum):
     block = "block"
 
 
+def _print_error(error: JevGuardError) -> None:
+    """One error, one next step. Escaped: hints name things like `jev-guard[local]`, and
+    Rich would silently swallow the brackets as markup."""
+    err.print(f"[bold red]error:[/] {escape(str(error.args[0]))}", highlight=False)
+    err.print(f"  [bold]next step:[/] {escape(str(error.hint))}", highlight=False)
+
+
 def friendly(func: Callable[P, R]) -> Callable[P, R]:
     """Turn jev-guard errors into one message plus a next step (tracebacks only with --debug)."""
 
@@ -90,8 +98,7 @@ def friendly(func: Callable[P, R]) -> Callable[P, R]:
         except JevGuardError as error:
             if _state["debug"]:
                 raise
-            err.print(f"[bold red]error:[/] {error.args[0]}", highlight=False)
-            err.print(f"  [bold]next step:[/] {error.hint}", highlight=False)
+            _print_error(error)
             raise typer.Exit(EXIT_USER_ERROR) from None
 
     return wrapper
@@ -126,8 +133,7 @@ def root(
         except JevGuardError as error:
             if debug:
                 raise
-            err.print(f"[bold red]error:[/] {error.args[0]}", highlight=False)
-            err.print(f"  [bold]next step:[/] {error.hint}", highlight=False)
+            _print_error(error)
             raise typer.Exit(EXIT_USER_ERROR) from None
 
 
@@ -256,7 +262,7 @@ def scan(
     """Check every record in a log file and report what would have been flagged."""
     log = read_log_file(logs)
     for warning in log.warnings[:WARNINGS_SHOWN]:
-        err.print(f"[yellow]warning:[/] {warning}", highlight=False)
+        err.print(f"[yellow]warning:[/] {escape(str(warning))}", highlight=False)
     if len(log.warnings) > WARNINGS_SHOWN:
         hidden = len(log.warnings) - WARNINGS_SHOWN
         err.print(f"[yellow]warning:[/] ...and {hidden} more in the report", highlight=False)
@@ -307,7 +313,7 @@ def scan(
         typer.echo(rendered)
     else:
         out_path.write_text(rendered, encoding="utf-8")
-        out.print(f"Report written to [bold]{out_path}[/]", highlight=False)
+        out.print(f"Report written to [bold]{escape(str(out_path))}[/]", highlight=False)
 
 
 def _print_scan_summary(report: dict[str, Any]) -> None:
@@ -402,7 +408,7 @@ def eval_command(
             typer.echo(rendered)
         else:
             out_path.write_text(rendered, encoding="utf-8")
-            out.print(f"Report written to [bold]{out_path}[/]", highlight=False)
+            out.print(f"Report written to [bold]{escape(str(out_path))}[/]", highlight=False)
     if not result.passed:
         raise typer.Exit(EXIT_BELOW_MINIMUM)
 

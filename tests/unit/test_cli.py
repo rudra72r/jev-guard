@@ -139,6 +139,17 @@ def test_scan_without_key_is_friendly(fake_jev, logs, monkeypatch):
     assert fake_jev.calls == []
 
 
+def test_error_hints_keep_their_square_brackets(monkeypatch):
+    """Rich reads `[local]` as a style tag and drops it, which silently broke the hint
+    telling a user without an API key how to run offline."""
+    monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
+    monkeypatch.delenv("JEV_GUARD_BACKEND", raising=False)
+    result = runner.invoke(app, ["check", "hello"])
+    assert result.exit_code == 1
+    assert 'pip install "jev-guard[local]"' in result.output
+    assert "JEV_GUARD_BACKEND=local" in result.output
+
+
 @pytest.mark.parametrize(
     ("suffix", "marker"),
     [

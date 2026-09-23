@@ -110,7 +110,13 @@ class JevClient:
         if not key:
             raise ConfigurationError(
                 f"{API_KEY_ENV} is not set, so jev-guard can't reach Jev.",
-                hint=f"Set {API_KEY_ENV} (get a key at https://console.typesafe.ai/keys).",
+                # TypeSafe signups have been closed at times, so always name the free path
+                # out: this is the first error most new users will ever see.
+                hint=(
+                    f"Set {API_KEY_ENV} (https://console.typesafe.ai/keys), or run with no "
+                    'account at all: pip install "jev-guard[local]" and set '
+                    "JEV_GUARD_BACKEND=local."
+                ),
             )
         return key
 
