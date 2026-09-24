@@ -133,7 +133,10 @@ def render_markdown(report: dict[str, Any]) -> str:
         "",
         f"**{s['records']}** records, **{s['flagged']}** flagged, "
         f"**${s['cost_usd']:.4f}** for {s['checks']} checks "
-        f"({s['input_tokens']:,} tokens), avg {s['avg_latency_ms']:.0f} ms.",
+        f"({s['input_tokens']:,} tokens), avg {s['avg_latency_ms']:.0f} ms per check.",
+        "",
+        "> Latency is wall time per check while checks run concurrently, so it reflects how "
+        "loaded the backend was, not what one check costs on its own.",
     ]
     if s["budget_exhausted"]:
         lines += ["", f"> Stopped at the cost cap: {s['skipped_budget']} records not checked."]
@@ -286,7 +289,7 @@ code { font-size: 13px; }
   <div class="card">Cost<b>${{ "%.4f"|format(r.summary.cost_usd) }}</b>
     <span class="muted">{{ "{:,}".format(r.summary.input_tokens) }} tokens</span></div>
   <div class="card">Avg latency<b>{{ "%.0f"|format(r.summary.avg_latency_ms) }} ms</b>
-    <span class="muted">{{ r.summary.checks }} checks</span></div>
+    <span class="muted">{{ r.summary.checks }} checks, run concurrently</span></div>
   {% if r.summary.budget_exhausted %}<div class="card warn">Stopped at cost cap
     <b>{{ r.summary.skipped_budget }}</b><span class="muted">records not checked</span></div>{% endif %}
   {% if r.summary.errors %}<div class="card warn">Errors<b>{{ r.summary.errors }}</b></div>{% endif %}

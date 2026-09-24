@@ -5,8 +5,6 @@ from __future__ import annotations
 import asyncio
 import builtins
 import json
-import threading
-import time
 
 import httpx2
 import pytest
@@ -747,39 +745,3 @@ def test_guard_verdict_uses_the_backend_cost():
 
 def test_default_backend_is_shared_between_guards(monkeypatch):
     assert backends.get_backend() is backends.get_backend()
-
-
-def test_local_backend_runs_one_inference_at_a_time():
-    """Concurrent CPU inferences don't finish sooner, they just contend — and each check's
-    latency then includes everyone else's work, which reported a 21-minute average in eval."""
-    live = 0
-    peak = 0
-    guard = threading.Lock()
-
-    def pipelines(task, model):
-        def run(*args, **kwargs):
-            nonlocal live, peak
-            with guard:
-                live += 1
-                peak = max(peak, live)
-            time.sleep(0.02)
-            with guard:
-                live -= 1
-            return [{"label": "INJECTION", "score": 0.9}]
-
-        return run
-
-    backend = LocalBackend(
-        specialists={"inj": Specialist("m", "INJECTION", "user_message")},
-        pipeline_factory=pipelines,
-    )
-    question = {"inj": {"type": "noul", "instructions": "injection?"}}
-    threads = [
-        threading.Thread(target=backend.evaluate, args=({"user_message": "x"}, question))
-        for _ in range(6)
-    ]
-    for thread in threads:
-        thread.start()
-    for thread in threads:
-        thread.join()
-    assert peak == 1, f"{peak} inferences ran at once"

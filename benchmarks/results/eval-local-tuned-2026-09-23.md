@@ -1,4 +1,4 @@
-# jev-guard eval: B:\Jev-guard\src\jev_guard\eval\datasets
+# jev-guard eval: jev-guard golden
 
 Policy `general_local` v1.0.0 · format `golden` · 2026-09-23T06:54:17+00:00
 

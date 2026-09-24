@@ -203,6 +203,9 @@ Reproduce it yourself — no key needed:
 jev-guard --backend local eval --policy policies/general_local.yaml
 ```
 
+That takes about half an hour on a 4-core laptop CPU (much less on a GPU, or with Jev, where
+the same command costs about $0.001).
+
 Jev's own numbers aren't published here yet, because they haven't been measured on a real
 account. Measure on *your* traffic with `jev-guard scan your-logs.jsonl`.
 
