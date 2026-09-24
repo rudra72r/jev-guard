@@ -82,5 +82,10 @@ jev-guard hook claude-code --skip-calls "Read,Glob,Grep"
 | LLM judge | 0.3–3 s, depending on model and host |
 | local models | ~7 s per check on a 4-thread CPU after a one-time ~23 s model load; much faster on a GPU |
 
+The local backend runs one check at a time on purpose. A single forward pass already uses
+every core, so concurrent checks don't finish sooner — they just contend, and each one's
+reported latency ends up including all the others' work. Concurrency settings still apply to
+every other backend.
+
 For streamed responses, raise `stream_check_every` on long outputs; see
 [Streaming](streaming.md).

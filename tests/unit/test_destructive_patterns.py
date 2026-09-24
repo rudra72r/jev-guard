@@ -25,7 +25,7 @@ DESTRUCTIVE = [
     "dd if=/dev/zero of=/dev/sda bs=1M",
     "echo boom > /dev/sda",
     "format c:",
-    "del /s /q C:\\Users\\rudra\\Documents",
+    "del /s /q C:\\Data\\archive",
     ":(){:|:&};:",
     "psql -c 'DROP DATABASE production'",
     "DROP TABLE customers;",

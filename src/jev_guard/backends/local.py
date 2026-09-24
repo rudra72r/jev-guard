@@ -231,6 +231,11 @@ class LocalBackend:
         self._factory = pipeline_factory or _transformers_pipeline
         self._pipelines: dict[tuple[str, str], Pipeline] = {}
         self._lock = threading.Lock()
+        # One inference at a time. Torch already uses every core for a single forward pass,
+        # so concurrent checks don't run faster — they just contend, and each one's measured
+        # latency then includes everyone else's work. `jev-guard eval` runs checks
+        # concurrently by default, which reported an average latency of 21 minutes a check.
+        self._inference = threading.Lock()
 
     @property
     def name(self) -> str:
@@ -335,7 +340,11 @@ class LocalBackend:
         return None
 
     def evaluate(self, state: Mapping[str, Any], questions: WireQuestions) -> JevResult:
-        start = time.perf_counter()
+        with self._inference:
+            return self._evaluate(state, questions)
+
+    def _evaluate(self, state: Mapping[str, Any], questions: WireQuestions) -> JevResult:
+        start = time.perf_counter()  # timed inside the lock: this check's work, not the queue
         premise = render_state(state)
         answers: dict[str, JevAnswer] = {}
         for name, question in questions.items():

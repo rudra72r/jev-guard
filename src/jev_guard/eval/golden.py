@@ -127,7 +127,18 @@ def load_golden(path: str | Path | None = None) -> GoldenSet:
                 )
             seen[sample.id] = where
             samples.append(sample)
-    return GoldenSet(source=str(target), manifest=manifest, samples=samples)
+    return GoldenSet(source=_describe(target, manifest), manifest=manifest, samples=samples)
+
+
+def _describe(target: Path, manifest: Manifest | None) -> str:
+    """What the report calls this dataset.
+
+    Reports get committed and pasted into issues, so the bundled set shouldn't print as
+    whatever absolute path it happens to live at on the machine that ran it.
+    """
+    if target == DEFAULT_DATASET_DIR:
+        return manifest.name if manifest else "bundled golden dataset"
+    return str(target)
 
 
 def _load_manifest(path: Path) -> Manifest:
