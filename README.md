@@ -6,7 +6,7 @@
 [![Python](https://img.shields.io/pypi/pyversions/jev-guard)](https://pypi.org/project/jev-guard/)
 [![CI](https://github.com/rudra72r/jev-guard/actions/workflows/ci.yml/badge.svg)](https://github.com/rudra72r/jev-guard/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/badge/coverage-99%25-brightgreen)](https://github.com/rudra72r/jev-guard/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](https://github.com/rudra72r/jev-guard/blob/main/LICENSE)
 [![Powered by Jev](https://img.shields.io/badge/powered%20by-Jev-6f42c1)](https://typesafe.ai)
 
 Your app decides what to do; jev-guard tells it what it's looking at, and why:
@@ -31,7 +31,7 @@ Can you summarise this quarter's churn for the board deck?
   -> ALLOW  confidence 0.99
 ```
 
-*Real output, captured from [`examples/00_try_it_offline.py`](examples/00_try_it_offline.py) on the offline backend — no account, no key, no cost.*
+*Real output, captured from [`examples/00_try_it_offline.py`](https://github.com/rudra72r/jev-guard/blob/main/examples/00_try_it_offline.py) on the offline backend — no account, no key, no cost.*
 
 **Jump to:** [Install](#install) · [Quickstart](#quickstart) · [Why](#why-this-exists) · [Policies](#policies) · [Accuracy](#measured-accuracy) · [Backends](#works-with-any-model-online-or-offline) · [Cost](#cost) · [Limits](#what-this-is-not) · [FAQ](#faq)
 
@@ -51,7 +51,7 @@ export JEV_GUARD_BACKEND=cloudflare     # or Jev via Cloudflare Workers AI, no T
 
 **No TypeSafe account?** TypeSafe's signups have been closed at times since launch. Everything
 in this README works on the offline backend, and Cloudflare Workers AI serves the same Jev
-model. See [Backends](docs/backends.md).
+model. See [Backends](https://github.com/rudra72r/jev-guard/blob/main/docs/backends.md).
 
 ## Quickstart
 
@@ -69,7 +69,7 @@ v.estimated_cost_usd  # what this check actually cost
 ```
 
 A support bot with both checks (the runnable version, with the OpenAI calls wired up, is
-[`examples/01_openai_chat_wrapped.py`](examples/01_openai_chat_wrapped.py)):
+[`examples/01_openai_chat_wrapped.py`](https://github.com/rudra72r/jev-guard/blob/main/examples/01_openai_chat_wrapped.py)):
 
 ```python
 from jev_guard import Guard, Policy
@@ -119,7 +119,7 @@ tools.check_tool_result("fetch_url", page, user_request=task)  # indirect inject
 ```
 
 In Claude Code, `jev-guard hook claude-code` does that for every tool call
-([recipe](docs/recipes/claude-code-agent.md)).
+([recipe](https://github.com/rudra72r/jev-guard/blob/main/docs/recipes/claude-code-agent.md)).
 
 ## Why this exists
 
@@ -173,13 +173,13 @@ jev-guard policy show support_agent     # the full builtin, as YAML
 jev-guard policy validate mine.yaml     # line-numbered errors before you ship it
 ```
 
-More in [docs/policies.md](docs/policies.md).
+More in [docs/policies.md](https://github.com/rudra72r/jev-guard/blob/main/docs/policies.md).
 
 ## Measured accuracy
 
 On the bundled 100-sample eval (50 attacks across 9 patterns, 30 clean messages including 15
 deliberate look-alikes, 20 with synthetic PII), on the **offline backend** with
-[`policies/general_local.yaml`](policies/general_local.yaml) — no key, no cost:
+[`policies/general_local.yaml`](https://github.com/rudra72r/jev-guard/blob/main/policies/general_local.yaml) — no key, no cost:
 
 | question | precision | recall | F1 | labelled samples |
 |---|---:|---:|---:|---:|
@@ -190,7 +190,7 @@ deliberate look-alikes, 20 with synthetic PII), on the **offline backend** with
 
 A regex baseline on the same samples catches 46% of the attacks and flags none of the clean
 messages. Full reports, including every mistake it made, are in
-[`benchmarks/results/`](benchmarks/results/).
+[`benchmarks/results/`](https://github.com/rudra72r/jev-guard/blob/main/benchmarks/results/).
 
 Where it's weak, from those 8 mistakes: leetspeak obfuscation (`1gn0r3 4ll pr3v10us…`) gets
 through, government ID numbers other than SSNs aren't recognised, and it still false-alarms on
@@ -219,8 +219,8 @@ export JEV_GUARD_BACKEND=jev,local         # Jev, falling back to local if it's 
 ```
 
 No code changes. At scale, input checks can run [in parallel with the LLM
-call](docs/scale.md) for zero added latency, and repeated checks are cached and rate-limited
-for you. See [Backends](docs/backends.md).
+call](https://github.com/rudra72r/jev-guard/blob/main/docs/scale.md) for zero added latency, and repeated checks are cached and rate-limited
+for you. See [Backends](https://github.com/rudra72r/jev-guard/blob/main/docs/backends.md).
 
 ## Cost
 
@@ -236,14 +236,14 @@ two-sentence question, a four-sentence reply):
 Estimates at ~4 characters per token. Every `Verdict` carries the real `input_tokens_used`
 and `estimated_cost_usd`, and `jev-guard scan logs.jsonl --dry-run` prices a whole log for
 free before you spend anything. Streaming costs more, because each check re-reads the answer
-so far: about $0.001 per 1,000-token streamed reply. Details in [docs/cost.md](docs/cost.md).
+so far: about $0.001 per 1,000-token streamed reply. Details in [docs/cost.md](https://github.com/rudra72r/jev-guard/blob/main/docs/cost.md).
 
 ## Also included
 
-[OpenTelemetry spans](docs/telemetry.md) · [`redact()` for PII](docs/redaction.md) ·
-[a LangChain callback](docs/recipes/rag-grounding.md) ·
-[a LiteLLM proxy guardrail](docs/recipes/litellm-proxy.md) ·
-[streaming with buffer or rollback](docs/streaming.md) ·
+[OpenTelemetry spans](https://github.com/rudra72r/jev-guard/blob/main/docs/telemetry.md) · [`redact()` for PII](https://github.com/rudra72r/jev-guard/blob/main/docs/redaction.md) ·
+[a LangChain callback](https://github.com/rudra72r/jev-guard/blob/main/docs/recipes/rag-grounding.md) ·
+[a LiteLLM proxy guardrail](https://github.com/rudra72r/jev-guard/blob/main/docs/recipes/litellm-proxy.md) ·
+[streaming with buffer or rollback](https://github.com/rudra72r/jev-guard/blob/main/docs/streaming.md) ·
 a CLI (`pip install "jev-guard[cli]"`) with `check`, `scan`, `eval`, `policy` and `hook`.
 
 ## What this is not
@@ -286,13 +286,13 @@ where speed and per-check cost matter.
 `api.typesafe.ai` and the text you check ([TypeSafe's legal page](https://docs.typesafe.ai/legal));
 on the local backend, nothing leaves the machine.
 
-More in [docs/faq.md](docs/faq.md).
+More in [docs/faq.md](https://github.com/rudra72r/jev-guard/blob/main/docs/faq.md).
 
 ## Contributing
 
-Issues and PRs welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). New policies and backends are
+Issues and PRs welcome — see [CONTRIBUTING.md](https://github.com/rudra72r/jev-guard/blob/main/CONTRIBUTING.md). New policies and backends are
 the easiest places to start. How the library was built and why it deviates from its spec is in
-[notes/](notes/).
+[notes/](https://github.com/rudra72r/jev-guard/blob/main/notes/).
 
 ## Credits
 
@@ -305,4 +305,4 @@ act on. jev-guard is an independent open-source project, not affiliated with Typ
 
 ## License
 
-[MIT](LICENSE) © 2026 Rudra
+[MIT](https://github.com/rudra72r/jev-guard/blob/main/LICENSE) © 2026 Rudra
