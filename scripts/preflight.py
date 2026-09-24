@@ -91,6 +91,49 @@ def check_env_untracked() -> Result:
     return Result(".env is not tracked", True)
 
 
+def _version() -> str:
+    text = (ROOT / "src" / "jev_guard" / "__init__.py").read_text(encoding="utf-8")
+    match = re.search(r'__version__ = "([^"]+)"', text)
+    return match.group(1) if match else "0.0.0"
+
+
+def check_release_tag() -> Result:
+    """A release tag must point at what you're about to publish.
+
+    The tag is what the publish workflow builds from, and a PyPI version can never be
+    re-uploaded. A tag left behind at an older commit publishes that older code, permanently.
+    """
+    name = "release tag matches HEAD"
+    version = _version()
+    tag = f"v{version}"
+    exists = subprocess.run(
+        ["git", "rev-parse", "-q", "--verify", f"refs/tags/{tag}"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if exists.returncode != 0:
+        return Result(name, True, f"{tag} not created yet")
+    behind = subprocess.run(
+        ["git", "rev-list", f"{tag}..HEAD", "--count"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    missed = behind.stdout.strip()
+    if missed not in ("", "0"):
+        return Result(
+            name,
+            False,
+            f"{tag} is {missed} commit(s) behind HEAD. Publishing it would ship that older "
+            f"code, and PyPI {version} could never be replaced.\n"
+            f'  Move it:  git tag -d {tag}    then    git tag -a {tag} -m "jev-guard {version}"',
+        )
+    return Result(name, True, f"{tag} at HEAD")
+
+
 def check_clean_install(dist: Path) -> Result:
     """A plain `pip install jev-guard` must import fast and run the CLI's install hint."""
     wheels = sorted(dist.glob("*.whl"))
@@ -143,6 +186,7 @@ def main() -> int:
     results = [
         check_env_untracked(),
         check_no_secrets(),
+        check_release_tag(),
         run("ruff check", [PY, "-m", "ruff", "check", "."]),
         run("ruff format --check", [PY, "-m", "ruff", "format", "--check", "."]),
         run("mypy", [PY, "-m", "mypy"]),
@@ -185,13 +229,16 @@ def main() -> int:
         print(f"\n{RED}Not ready to publish.{OFF} Fix the above and run preflight again.")
         return 1
 
-    version = (ROOT / "src" / "jev_guard" / "__init__.py").read_text(encoding="utf-8")
-    match = re.search(r'__version__ = "([^"]+)"', version)
-    tag = f"v{match.group(1)}" if match else "vX.Y.Z"
-    print(f"\n{GREEN}{BOLD}Ready to publish.{OFF} To release {tag}:\n")
-    print(f"  {DIM}1.{OFF} git push origin main                {DIM}# CI must be green{OFF}")
-    print(f"  {DIM}2.{OFF} gh repo edit --visibility public    {DIM}# make the repo public{OFF}")
-    print(f"  {DIM}3.{OFF} git tag {tag} && git push origin {tag}   {DIM}# fires publish.yml{OFF}")
+    tag = f"v{_version()}"
+    # One command per line, no `&&`: these get pasted into PowerShell as often as into bash,
+    # and PowerShell 5.1 rejects `&&` outright.
+    print(f"\n{GREEN}{BOLD}Ready to publish.{OFF} To release {tag}, one line at a time:\n")
+    for step, comment in (
+        ("git push origin main", "CI must be green"),
+        ("gh repo edit rudra72r/jev-guard --visibility public", "public repo"),
+        (f"git push origin {tag}", "fires publish.yml"),
+    ):
+        print(f"  {step:<52}{DIM}# {comment}{OFF}")
     print(f"\n  {DIM}PyPI trusted publishing must be configured first — see notes/LAUNCH.md.{OFF}")
     return 0
 
