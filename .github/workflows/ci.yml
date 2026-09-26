@@ -55,4 +55,6 @@ jobs:
           python -m venv /tmp/clean
           /tmp/clean/bin/pip install dist/*.whl
           /tmp/clean/bin/python -c "import jev_guard; print(jev_guard.__version__)"
-          /tmp/clean/bin/jev-guard --help 2>&1 | grep 'pip install "jev-guard\[cli\]"'
+          # The hint's exact wording comes from jev_guard._install, so match the part of it
+          # that has to be there however the package is distributed.
+          /tmp/clean/bin/jev-guard --help 2>&1 | grep 'jev-guard\[cli\]'
