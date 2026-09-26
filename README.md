@@ -1,33 +1,23 @@
-<p align="center">
-  <img src="https://raw.githubusercontent.com/rudra72r/jev-guard/main/assets/banner.svg"
-       alt="jev-guard — guardrails for LLM apps, every input and output checked in 70–500 ms"
-       width="100%">
-</p>
+<img src="https://raw.githubusercontent.com/rudra72r/jev-guard/main/assets/banner.svg"
+     alt="jev-guard — guardrails for LLM apps, every input and output checked in 70–500 ms"
+     width="100%">
 
-<p align="center">
-  <a href="https://pypi.org/project/jev-guard/"><img src="https://img.shields.io/pypi/v/jev-guard?color=8B5CF6&labelColor=11141C" alt="PyPI"></a>
-  <a href="https://pypi.org/project/jev-guard/"><img src="https://img.shields.io/pypi/pyversions/jev-guard?color=8B5CF6&labelColor=11141C" alt="Python versions"></a>
-  <a href="https://github.com/rudra72r/jev-guard/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/rudra72r/jev-guard/ci.yml?branch=main&labelColor=11141C" alt="CI"></a>
-  <a href="https://github.com/rudra72r/jev-guard/actions/workflows/ci.yml"><img src="https://img.shields.io/badge/coverage-99%25-34D399?labelColor=11141C" alt="Coverage 99%"></a>
-  <a href="https://github.com/rudra72r/jev-guard/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-22D3EE?labelColor=11141C" alt="MIT license"></a>
-  <a href="https://typesafe.ai"><img src="https://img.shields.io/badge/powered%20by-Jev-A78BFA?labelColor=11141C" alt="Powered by Jev"></a>
-</p>
+[![PyPI](https://img.shields.io/pypi/v/jev-guard?style=flat-square&labelColor=12120F&color=5E5E56)](https://pypi.org/project/jev-guard/)
+[![Python](https://img.shields.io/pypi/pyversions/jev-guard?style=flat-square&labelColor=12120F&color=5E5E56)](https://pypi.org/project/jev-guard/)
+[![CI](https://img.shields.io/github/actions/workflow/status/rudra72r/jev-guard/ci.yml?branch=main&style=flat-square&labelColor=12120F&color=5E5E56)](https://github.com/rudra72r/jev-guard/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/badge/coverage-99%25-5E5E56?style=flat-square&labelColor=12120F)](https://github.com/rudra72r/jev-guard/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/license-MIT-5E5E56?style=flat-square&labelColor=12120F)](https://github.com/rudra72r/jev-guard/blob/main/LICENSE)
+[![Powered by Jev](https://img.shields.io/badge/powered%20by-Jev-5E5E56?style=flat-square&labelColor=12120F)](https://typesafe.ai)
 
-<p align="center">
-  <b>Your app decides what to do. jev-guard tells it what it's looking at, and why.</b>
-</p>
+**Your app decides what to do. jev-guard tells it what it's looking at, and why.**
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/rudra72r/jev-guard/main/assets/demo.svg"
-       alt="Terminal: jev-guard blocks two prompt injections and allows two ordinary questions, each with the question that fired, its value, its threshold and its severity"
-       width="900">
-</p>
+<img src="https://raw.githubusercontent.com/rudra72r/jev-guard/main/assets/demo.svg"
+     alt="Session: jev-guard blocks two prompt injections and allows two ordinary questions, each with the question that fired, its value, its threshold and its severity"
+     width="900">
 
-<p align="center">
-  <sub>Real output, captured from
-  <a href="https://github.com/rudra72r/jev-guard/blob/main/examples/00_try_it_offline.py"><code>examples/00_try_it_offline.py</code></a>
-  on the offline backend — no account, no key, no cost.</sub>
-</p>
+<sub>Real output, captured from
+[`examples/00_try_it_offline.py`](https://github.com/rudra72r/jev-guard/blob/main/examples/00_try_it_offline.py)
+on the offline backend — no account, no key, no cost.</sub>
 
 **Jump to:** [Install](#install) · [Quickstart](#quickstart) · [Why](#why-this-exists) · [Policies](#policies) · [Accuracy](#measured-accuracy) · [Backends](#works-with-any-model-online-or-offline) · [Cost](#cost) · [Limits](#what-this-is-not) · [FAQ](#faq)
 

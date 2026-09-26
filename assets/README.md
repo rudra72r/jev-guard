@@ -7,9 +7,12 @@
 | `demo.svg` | animated terminal, the real offline transcript; CSS keyframes, no JS | 900×496 |
 | `social-preview.svg` / `.png` | GitHub Settings → Social preview, and link cards on LinkedIn, X and Slack | 1280×640 |
 
-The palette is the product: **allow** `#34D399`, **review** `#FBBF24`, **block** `#F87171`,
-on `#0B0E14` with `#8B5CF6` for Jev. The mark is three bars — a probability distribution,
-and a gate.
+A technical specimen sheet: paper, hairline rules, registration marks, monospace. Colour is
+reserved for data — `#C82828` critical, `#B07000` high, `#14794E` allow — on `#FFFFFF` with
+`#12120F` ink. Nothing is tinted for decoration.
+
+The mark is the product in one glyph: three measured values against a single threshold line.
+Two cross it, one doesn't.
 
 `demo.svg` is generated, so the transcript can't drift from reality: regenerate it with
 `python scripts/make_demo.py` after re-running `examples/00_try_it_offline.py`.
