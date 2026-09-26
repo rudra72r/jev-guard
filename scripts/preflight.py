@@ -235,10 +235,19 @@ def main() -> int:
     print(f"\n{GREEN}{BOLD}Ready to publish.{OFF} To release {tag}, one line at a time:\n")
     for step, comment in (
         ("git push origin main", "CI must be green"),
-        ("gh repo edit rudra72r/jev-guard --visibility public", "public repo"),
+        (
+            "gh repo edit rudra72r/jev-guard --visibility public"
+            " --accept-visibility-change-consequences",
+            "gh refuses --visibility without that flag",
+        ),
         (f"git push origin {tag}", "fires publish.yml"),
     ):
-        print(f"  {step:<52}{DIM}# {comment}{OFF}")
+        # A command longer than the column gets its note on the line above, so the command
+        # stays on one unbroken line the user can copy.
+        if len(step) > 52:  # noqa: PLR2004
+            print(f"  {DIM}# {comment}{OFF}\n  {step}")
+        else:
+            print(f"  {step:<52}{DIM}# {comment}{OFF}")
     print(f"\n  {DIM}PyPI trusted publishing must be configured first — see notes/LAUNCH.md.{OFF}")
     return 0
 
