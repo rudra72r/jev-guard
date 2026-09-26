@@ -28,6 +28,43 @@ stream_strategy: rollback
 
 Chunks go straight through and checks run in the background, so time-to-first-token is unchanged. If a check blocks, the stream stops and a `StreamCut` with `retract=True` tells your app to remove the message it already showed (render "message removed by safety filter"). Use it when latency matters more than the user briefly seeing text that gets retracted.
 
+## Only a block stops a stream
+
+A `review` verdict flags and keeps going — there is nothing to review if the text never
+reaches anyone. That has a consequence worth knowing before you ship:
+
+**With the default `general` policy, a streamed reply containing a card number is not
+stopped.** `contains_pii` is `high` on output, one `high` question aggregates to `review`, and
+review lets the text through. Measured with a scripted backend answering `contains_pii` = 0.99:
+
+| policy | what the user received |
+|---|---|
+| `general` as shipped | `Your card is 4111 1111 1111 1111 — anything else?` |
+| same, `contains_pii` raised to `critical` | nothing; the stream was cut before any of it |
+
+That default is deliberate: a support bot legitimately repeating a customer's own address
+shouldn't have its answer destroyed. But you have to choose, so choose on purpose:
+
+```yaml
+name: pii_blocks
+extends: general
+output:
+  contains_pii:
+    severity: critical      # stop the stream instead of flagging it
+```
+
+Usually the better answer for PII in output isn't blocking at all — it's masking, which keeps
+the useful half of the reply:
+
+```python
+async for token in guard.astream_check(stream, user_message):
+    clean, _ = redact(str(token), level="fast")  # local, free, deterministic
+    send_to_user(clean)
+```
+
+See [PII redaction](redaction.md). The same reasoning applies to non-streamed checks: `review`
+is a signal for your code to act on, not something jev-guard enforces.
+
 ## What each check sees
 
 Every check covers the **whole response so far**, not just the newest chunks. An instruction split across chunks ("ignore all prev" + "ious instructions") is still seen whole. The tradeoff is cost growing faster than length:

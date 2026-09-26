@@ -4,7 +4,7 @@ jev-guard checks what goes into and comes out of your LLM. Each check is one cal
 
 ```bash
 pip install jev-guard
-export TYPESAFE_API_KEY=sk-...    # or JEV_GUARD_BACKEND=local to run offline with no key
+export TYPESAFE_API_KEY=sk-...     # or: JEV_GUARD_BACKEND=local (offline, no key)
 ```
 
 ```python

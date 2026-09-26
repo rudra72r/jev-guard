@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64"
+     role="img" aria-label="jev-guard">
+  <title>jev-guard</title>
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1B1235"/>
+      <stop offset="1" stop-color="#0B0E14"/>
+    </linearGradient>
+    <linearGradient id="edge" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8B5CF6" stop-opacity=".55"/>
+      <stop offset="1" stop-color="#8B5CF6" stop-opacity=".08"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="1" y="1" width="62" height="62" rx="15" fill="url(#tile)"/>
+  <rect x="1.5" y="1.5" width="61" height="61" rx="14.5" fill="none" stroke="url(#edge)"/>
+
+  <!-- Three bars: a probability distribution, and a gate. Long green = allow,
+       shorter amber = review, shortest red = block. -->
+  <g>
+    <rect x="15" y="18" width="34" height="6" rx="3" fill="#34D399"/>
+    <rect x="15" y="29" width="22" height="6" rx="3" fill="#FBBF24"/>
+    <rect x="15" y="40" width="11" height="6" rx="3" fill="#F87171"/>
+  </g>
+</svg>

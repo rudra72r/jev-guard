@@ -88,6 +88,8 @@ select = ["E", "F", "I", "N", "UP", "B", "SIM", "ARG", "PL"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["PLR2004", "ARG", "PLR0913", "PLR0917"]
+# An SVG template: wrapping these lines would put newlines inside attribute values.
+"scripts/make_demo.py" = ["E501"]
 # Callback signatures are fixed by LangChain's BaseCallbackHandler interface.
 "src/jev_guard/integrations/langchain_cb.py" = ["ARG002"]
 "src/jev_guard/integrations/litellm_proxy.py" = ["ARG002"]  # LiteLLM hook signatures

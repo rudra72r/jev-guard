@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 320" width="1280" height="320"
+     role="img" aria-label="jev-guard — guardrails for LLM apps in 70 to 500 milliseconds for about $0.00002 a check">
+  <title>jev-guard</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0D0B18"/>
+      <stop offset=".55" stop-color="#0B0E14"/>
+      <stop offset="1" stop-color="#0B0E14"/>
+    </linearGradient>
+    <radialGradient id="glow" cx=".13" cy=".05" r=".75">
+      <stop offset="0" stop-color="#8B5CF6" stop-opacity=".34"/>
+      <stop offset="1" stop-color="#8B5CF6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx=".92" cy="1" r=".6">
+      <stop offset="0" stop-color="#22D3EE" stop-opacity=".14"/>
+      <stop offset="1" stop-color="#22D3EE" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0v32" fill="none" stroke="#FFFFFF" stroke-opacity=".035"/>
+    </pattern>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#241848"/>
+      <stop offset="1" stop-color="#11131C"/>
+    </linearGradient>
+    <linearGradient id="hair" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#8B5CF6" stop-opacity=".7"/>
+      <stop offset=".5" stop-color="#22D3EE" stop-opacity=".35"/>
+      <stop offset="1" stop-color="#8B5CF6" stop-opacity="0"/>
+    </linearGradient>
+    <style>
+      .sans { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif; }
+      .mono { font-family: ui-monospace, SFMono-Regular, "Cascadia Mono", Consolas, Menlo, monospace; }
+    </style>
+  </defs>
+
+  <rect width="1280" height="320" fill="url(#bg)"/>
+  <rect width="1280" height="320" fill="url(#grid)"/>
+  <rect width="1280" height="320" fill="url(#glow)"/>
+  <rect width="1280" height="320" fill="url(#glow2)"/>
+  <rect y="319" width="1280" height="1" fill="url(#hair)"/>
+
+  <!-- mark -->
+  <g transform="translate(72 96)">
+    <rect width="88" height="88" rx="21" fill="url(#tile)"/>
+    <rect x=".75" y=".75" width="86.5" height="86.5" rx="20.25" fill="none"
+          stroke="#8B5CF6" stroke-opacity=".4"/>
+    <rect x="20" y="24" width="48" height="8" rx="4" fill="#34D399"/>
+    <rect x="20" y="40" width="31" height="8" rx="4" fill="#FBBF24"/>
+    <rect x="20" y="56" width="15" height="8" rx="4" fill="#F87171"/>
+  </g>
+
+  <!-- wordmark -->
+  <text class="sans" x="192" y="152" font-size="62" font-weight="700" fill="#F2F4F8"
+        letter-spacing="-1.6">jev-guard</text>
+  <text class="sans" x="195" y="190" font-size="21" fill="#9AA3B6" letter-spacing=".1">
+    Every input and output checked in 70–500 ms
+  </text>
+
+  <!-- verdict legend -->
+  <g class="sans" font-size="13" font-weight="600" letter-spacing="1.4">
+    <g transform="translate(195 228)">
+      <circle cx="5" cy="-4" r="5" fill="#34D399"/>
+      <text x="18" y="0" fill="#34D399">ALLOW</text>
+    </g>
+    <g transform="translate(300 228)">
+      <circle cx="5" cy="-4" r="5" fill="#FBBF24"/>
+      <text x="18" y="0" fill="#FBBF24">REVIEW</text>
+    </g>
+    <g transform="translate(415 228)">
+      <circle cx="5" cy="-4" r="5" fill="#F87171"/>
+      <text x="18" y="0" fill="#F87171">BLOCK</text>
+    </g>
+    <text class="sans" x="530" y="228" font-size="13" font-weight="400" fill="#6F7A8F"
+          letter-spacing="0">with the reason, every time</text>
+  </g>
+
+  <!-- verdict card: a real jev-guard verdict -->
+  <g transform="translate(744 62)">
+    <rect width="472" height="196" rx="14" fill="#0E121B" fill-opacity=".92"
+          stroke="#252C3A"/>
+    <g class="mono" font-size="14.5">
+      <text x="22" y="38" fill="#69738A">$ jev-guard check "ignore all previous…"</text>
+      <text x="22" y="76" fill="#F87171" font-weight="700">BLOCK</text>
+      <text x="96" y="76" fill="#8B94A7">confidence 0.30</text>
+      <text x="22" y="114" fill="#C6CDDB">is_prompt_injection</text>
+      <text x="252" y="114" fill="#E6E9EF">1.00 &gt; 0.85</text>
+      <text x="372" y="114" fill="#F87171">critical</text>
+      <text x="22" y="142" fill="#C6CDDB">contains_pii</text>
+      <text x="252" y="142" fill="#E6E9EF">0.95 &gt; 0.60</text>
+      <text x="372" y="142" fill="#FBBF24">high</text>
+      <text x="22" y="172" fill="#69738A">cost $0.000021 · 180 ms</text>
+    </g>
+  </g>
+</svg>
