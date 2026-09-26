@@ -1,3 +1,6 @@
+# Build notes, launch drafts, the original spec — kept locally, not published.
+notes/
+
 # Secrets — never commit
 .env
 .env.*

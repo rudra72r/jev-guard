@@ -64,8 +64,7 @@ Edit `scripts/build_golden_dataset.py` and run it. Every sample must:
 
 - Match the surrounding code. mypy strict on `src/`, docstrings on public functions.
 - Error messages say what happened and what to do next (`JevGuardError(message, hint=...)`).
-- The public API in [`notes/SPEC.md`](notes/SPEC.md) Section 4 (`Guard`, `Policy`, `Verdict`)
-  is frozen for 0.x.
+- The public API (`Guard`, `Policy`, `Verdict`) is frozen for 0.x.
   Add new capabilities in new modules rather than new `Guard` methods.
 - Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/).
 

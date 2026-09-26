@@ -243,7 +243,7 @@ def main() -> int:
             print(f"  {DIM}# {comment}{OFF}\n  {step}")
         else:
             print(f"  {step:<52}{DIM}# {comment}{OFF}")
-    print(f"\n  {DIM}Not on PyPI: installs come from git. notes/LAUNCH.md has the rest.{OFF}")
+    print(f"\n  {DIM}Not on PyPI: installs come from git.{OFF}")
     return 0
 
 

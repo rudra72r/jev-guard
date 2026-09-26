@@ -60,7 +60,7 @@ SAFE = [
     "chmod 755 scripts/preflight.py",
     "dd if=backup.img of=restored.img",
     "npm run format",
-    "cat notes/DEVIATIONS.md",
+    "cat CHANGELOG.md",
 ]
 
 

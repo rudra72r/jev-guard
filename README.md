@@ -293,8 +293,7 @@ More in [docs/faq.md](https://github.com/rudra72r/jev-guard/blob/main/docs/faq.m
 ## Contributing
 
 Issues and PRs welcome — see [CONTRIBUTING.md](https://github.com/rudra72r/jev-guard/blob/main/CONTRIBUTING.md). New policies and backends are
-the easiest places to start. How the library was built and why it deviates from its spec is in
-[notes/](https://github.com/rudra72r/jev-guard/blob/main/notes/).
+the easiest places to start.
 
 ## Credits
 
