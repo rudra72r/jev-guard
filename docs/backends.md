@@ -70,7 +70,7 @@ jev-guard --backend local eval --out eval-local.html
     A policy's thresholds encode how confident *that backend* is. Measured on the golden
     set, the local zero-shot model picks "malicious" for the right messages but with about
     0.5 confidence, so `general`'s 0.8 threshold never fires and intent recall is 0. The
-    same policy on Jev is unaffected. [`policies/general_local.yaml`](https://github.com/rudra72r/jev-guard/blob/main/policies/general_local.yaml)
+    same policy on Jev is unaffected. `general_local`
     is `general` retuned for local models; re-measure with `jev-guard --backend local eval`
     whenever you switch backend or model.
 

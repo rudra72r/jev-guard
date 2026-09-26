@@ -2,22 +2,28 @@
 
 About 15 minutes from install to a measured result.
 
-## 1. Install and pick a backend
+## 1. Install and see it work
 
 ```bash
-pip install "jev-guard[cli]"
-export TYPESAFE_API_KEY=sk-...
+pip install "jev-guard[local]"
+jev-guard try
 ```
 
-Get a key at [console.typesafe.ai/keys](https://console.typesafe.ai/keys), the only official source. `Guard()` doesn't need the key until the first check, so importing jev-guard and inspecting policies works without one.
+`try` needs no account, no key and no arguments: it picks a backend, checks four example
+messages, and prints the Python to paste into your app. The first run downloads about 1.5 GB
+of models, then each check takes a few seconds on a CPU.
+
+With a TypeSafe key, `pip install "jev-guard[cli]"` and `export TYPESAFE_API_KEY=sk-...` is
+enough, and checks take 70–500 ms instead.
+
+Keys come from [console.typesafe.ai/keys](https://console.typesafe.ai/keys), the only official source. `Guard()` doesn't ask for one until the first check, so importing jev-guard and inspecting policies works without it.
 
 !!! tip "No TypeSafe account?"
-    Signups have been closed at times since launch. Everything below works offline —
-    `pip install "jev-guard[local]"` and `export JEV_GUARD_BACKEND=local`, no key and no
-    cost — or through Cloudflare Workers AI. See [Backends](backends.md). The offline models
-    are slower (~7 s a check) and slightly less accurate, so retune thresholds with
-    [`policies/general_local.yaml`](https://github.com/rudra72r/jev-guard/blob/main/policies/general_local.yaml)
-    as a starting point.
+    Signups have been closed at times since launch, and nothing here needs one. The offline
+    backend runs the same policies locally, and Cloudflare Workers AI serves the same Jev
+    model — see [Backends](backends.md). Offline models are slower (~7 s a check) and a
+    little blunter, so use the `general_local` policy, whose thresholds are calibrated for
+    them.
 
 ## 2. Try it from the shell
 

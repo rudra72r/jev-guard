@@ -8,7 +8,7 @@ No. See [Streaming](streaming.md). Buffer mode never shows unchecked text. Rollb
 
 v0.1 ships a 100-sample labelled eval (`jev-guard eval`) with the pass bar each builtin must clear.
 
-Measured on it with the **offline** backend and `policies/general_local.yaml`: flagged F1 0.94, `is_prompt_injection` F1 0.95, `contains_pii` F1 0.92, `intent` F1 0.86. A regex baseline on the same samples catches 46% of the attacks. Reproduce with `jev-guard --backend local eval --policy policies/general_local.yaml` — no key, no cost.
+Measured on it with the **offline** backend and `general_local`: flagged F1 0.94, `is_prompt_injection` F1 0.95, `contains_pii` F1 0.92, `intent` F1 0.86. A regex baseline on the same samples catches 46% of the attacks. Reproduce with `jev-guard --backend local eval --policy general_local` — no key, no cost.
 
 Numbers for Jev itself aren't published yet, because they haven't been measured on a real account. Run `jev-guard eval` on your key (about $0.001) and you'll have them for your setup. For your own traffic, add labels to a log sample and run `jev-guard scan`.
 

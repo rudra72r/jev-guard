@@ -13,9 +13,9 @@ First release.
 - `Guard` with `check_input` / `check_output` and async `acheck_input` / `acheck_output`,
   returning a JSON-serializable `Verdict` (action, reasons, confidence, raw Jev answers,
   latency, tokens, cost, suggested safe reply).
-- Six builtin policies: `general` (default), `writing_app`, `support_agent`,
-  `coding_agent`, `rag`, and `agent_tools`, each with a YAML twin in `policies/` and sample
-  `strict`, `permissive`, `coding_agent_prod`, and `general_local` policies.
+- Seven builtin policies: `general` (default), `general_local`, `writing_app`,
+  `support_agent`, `coding_agent`, `rag`, and `agent_tools`, each with a YAML twin in
+  `policies/`, plus sample `strict`, `permissive`, and `coding_agent_prod` policies.
 - Severity-weighted aggregation: critical questions block alone, high questions sum
   toward review and block thresholds, medium and low only lower confidence. Every
   reason names the question, value, threshold, and severity.
@@ -51,6 +51,11 @@ First release.
   tool call. `tests/unit/test_import_cost.py` keeps it that way.
 - `scripts/preflight.py`: one command that runs everything CI runs, plus a secret scan and a
   clean-virtualenv install of the built wheel.
+- `jev-guard try`: the whole setup after `pip install`. No key, no arguments, no config — it
+  picks a backend, checks four example messages, and prints the Python to paste into an app.
+- `general_local`, a seventh builtin: `general` with `intent` retuned from 0.8 to 0.4 for
+  local models. It previously existed only as a file in the repo, so anyone who pip-installed
+  and ran offline silently got thresholds measured to give 0.00 intent recall.
 - Scale: an answer cache (on by default), client-side rate limiting under TypeSafe's
   1,200/min, `jev_guard.parallel.run_with_guard` to check input while the LLM generates
   (zero added latency), and `ToolGuard(skip_calls=..., skip_results=...)`.

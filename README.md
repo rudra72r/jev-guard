@@ -24,15 +24,21 @@ on the offline backend — no account, no key, no cost.</sub>
 ## Install
 
 ```bash
-pip install jev-guard
+pip install "jev-guard[local]"
+jev-guard try
 ```
 
-Then pick what answers the checks:
+That's the whole setup. No account, no key, no config: `try` picks a backend, checks four
+example messages, and prints the three lines of Python to paste into your app. The first run
+downloads about 1.5 GB of models.
+
+Already have a TypeSafe key? `pip install jev-guard` is enough — `try` uses Jev when
+`TYPESAFE_API_KEY` is set, and it's much faster.
 
 ```bash
 export TYPESAFE_API_KEY=sk-...          # Jev: fastest and cheapest (console.typesafe.ai/keys)
-export JEV_GUARD_BACKEND=local          # or offline: pip install "jev-guard[local]", no key
-export JEV_GUARD_BACKEND=cloudflare     # or Jev via Cloudflare Workers AI, no TypeSafe account
+export JEV_GUARD_BACKEND=local          # offline, free, nothing leaves the machine
+export JEV_GUARD_BACKEND=cloudflare     # Jev via Cloudflare Workers AI, no TypeSafe account
 ```
 
 **No TypeSafe account?** TypeSafe's signups have been closed at times since launch. Everything
@@ -165,7 +171,7 @@ More in [docs/policies.md](https://github.com/rudra72r/jev-guard/blob/main/docs/
 
 On the bundled 100-sample eval (50 attacks across 9 patterns, 30 clean messages including 15
 deliberate look-alikes, 20 with synthetic PII), on the **offline backend** with
-[`policies/general_local.yaml`](https://github.com/rudra72r/jev-guard/blob/main/policies/general_local.yaml) — no key, no cost:
+`general_local` — no key, no cost:
 
 | question | precision | recall | F1 | labelled samples |
 |---|---:|---:|---:|---:|
@@ -186,7 +192,7 @@ as a smoke test, not a measurement.
 Reproduce it yourself — no key needed:
 
 ```bash
-jev-guard --backend local eval --policy policies/general_local.yaml
+jev-guard --backend local eval --policy general_local
 ```
 
 That takes about half an hour on a 4-core laptop CPU (much less on a GPU, or with Jev, where

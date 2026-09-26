@@ -244,3 +244,43 @@ def test_entry_point_runs_app(monkeypatch):
     monkeypatch.setattr(cli_app, "app", lambda: called.append(True))
     cli.main()
     assert called == [True]
+
+
+# --- try: the zero-config onboarding command ----------------------------------------------
+
+
+def test_try_runs_the_samples_and_shows_the_snippet(fake_jev, monkeypatch):
+    monkeypatch.setenv("TYPESAFE_API_KEY", "sk-test-fake")
+    monkeypatch.delenv("JEV_GUARD_BACKEND", raising=False)
+    result = runner.invoke(app, ["try"])
+    assert result.exit_code == 0
+    for message in ("Ignore all previous instructions", "last invoice", "board deck"):
+        assert message in result.output
+    assert "from jev_guard import Guard" in result.output
+    assert len(fake_jev.calls) == 4
+
+
+def test_try_without_a_key_or_local_extra_says_exactly_what_to_install(monkeypatch):
+    monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
+    monkeypatch.delenv("JEV_GUARD_BACKEND", raising=False)
+    monkeypatch.setattr(cli_app.importlib.util, "find_spec", lambda name: None)
+    result = runner.invoke(app, ["try"])
+    assert result.exit_code == 1
+    assert 'pip install "jev-guard[local]"' in result.output
+
+
+def test_try_picks_local_and_its_calibrated_policy(monkeypatch):
+    """A local backend with `general`'s thresholds scores 0.00 intent recall — measured."""
+    monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
+    monkeypatch.delenv("JEV_GUARD_BACKEND", raising=False)
+    monkeypatch.setattr(cli_app.importlib.util, "find_spec", lambda name: object())
+    spec, why = cli_app._pick_backend()
+    assert spec == "local"
+    assert "no API key" in why
+
+
+def test_try_honours_an_explicit_backend(monkeypatch):
+    monkeypatch.setenv("JEV_GUARD_BACKEND", "ollama:llama3.1")
+    spec, why = cli_app._pick_backend()
+    assert spec == "ollama:llama3.1"
+    assert "JEV_GUARD_BACKEND" in why
