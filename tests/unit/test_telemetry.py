@@ -11,6 +11,7 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from opentelemetry.trace import StatusCode
 
 from jev_guard import Guard, JevAPIError, telemetry
+from jev_guard._install import install
 from jev_guard.telemetry import SPAN_ATTRIBUTES, SPAN_NAME, disable_telemetry, setup_telemetry
 
 
@@ -116,7 +117,7 @@ def test_setup_without_opentelemetry_prints_install_hint(monkeypatch, capsys):
 
     monkeypatch.setattr(builtins, "__import__", fake_import)
     assert setup_telemetry() is False
-    assert 'pip install "jev-guard[otel]"' in capsys.readouterr().err
+    assert install("otel") in capsys.readouterr().err
 
 
 def test_setup_uses_global_provider_by_default():

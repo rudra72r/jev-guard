@@ -16,9 +16,11 @@ def main() -> None:
     except ModuleNotFoundError as err:
         if (err.name or "").split(".")[0] not in _CLI_DEPS:
             raise
+        from jev_guard._install import install  # noqa: PLC0415 (tiny, no dependencies)
+
         sys.stderr.write(
             f"jev-guard's command line needs extra packages ({err.name} is missing).\n"
-            '  next step: pip install "jev-guard[cli]"\n'
+            f"  next step: {install('cli')}\n"
         )
         raise SystemExit(1) from None
     app()

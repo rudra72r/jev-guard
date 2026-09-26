@@ -20,6 +20,7 @@ from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn
 from rich.table import Column, Table
 
 from jev_guard import __version__, backends
+from jev_guard._install import install
 from jev_guard.agents import ToolGuard
 from jev_guard.errors import ConfigurationError, JevGuardError, PolicyError
 from jev_guard.eval.golden import (
@@ -220,7 +221,7 @@ def try_it() -> None:
     if not spec:
         err.print("[bold]jev-guard needs something to answer the checks.[/]", highlight=False)
         err.print("\n  The quickest way, no account needed:\n", highlight=False)
-        err.print('    pip install "jev-guard[local]"\n', highlight=False, markup=False)
+        err.print(f"    {install('local')}\n", highlight=False, markup=False)
         err.print("  Or, with a TypeSafe key:\n", highlight=False)
         err.print(
             "    export TYPESAFE_API_KEY=sk-...    (set, on Windows)\n",

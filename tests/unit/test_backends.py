@@ -12,6 +12,7 @@ from tests.conftest import FakeJevClient
 
 import jev_guard.backends.ratelimit as ratelimit_module
 from jev_guard import ConfigurationError, Guard, JevAPIError, backends
+from jev_guard._install import install
 from jev_guard.backends import (
     AnthropicJudge,
     CachingBackend,
@@ -550,7 +551,7 @@ def test_local_without_transformers_gives_install_hint(monkeypatch):
     monkeypatch.setattr(builtins, "__import__", fake_import)
     with pytest.raises(ConfigurationError) as info:
         LocalBackend().evaluate(STATE, NOUL)
-    assert 'pip install "jev-guard[local]"' in info.value.hint
+    assert install("local") in info.value.hint
 
 
 def test_render_state():

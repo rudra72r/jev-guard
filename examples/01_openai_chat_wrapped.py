@@ -1,6 +1,6 @@
 """Example 01: guard an OpenAI customer-support bot.
 
-    pip install "jev-guard[openai]"
+    pip install "jev-guard[openai] @ git+https://github.com/rudra72r/jev-guard"
     export TYPESAFE_API_KEY=sk-...    # https://console.typesafe.ai/keys
     export OPENAI_API_KEY=sk-...
     python examples/01_openai_chat_wrapped.py

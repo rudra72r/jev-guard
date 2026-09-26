@@ -49,8 +49,10 @@ First release.
   makes a call, cutting `import jev_guard` by about 30% (measured 707 ms to 505 ms on a
   Windows laptop). This matters most for the Claude Code hook, which starts a process per
   tool call. `tests/unit/test_import_cost.py` keeps it that way.
-- `scripts/preflight.py`: one command that runs everything CI runs, plus a secret scan and a
-  clean-virtualenv install of the built wheel.
+- `scripts/preflight.py`: one command that runs everything CI runs, plus a secret scan, a
+  check that the release tag is at HEAD, and a clean-virtualenv install of the built wheel.
+- Distributed from git rather than PyPI for now. Every install hint the library prints is
+  built by `jev_guard._install`, so publishing later is one flag.
 - `jev-guard try`: the whole setup after `pip install`. No key, no arguments, no config — it
   picks a backend, checks four example messages, and prints the Python to paste into an app.
 - `general_local`, a seventh builtin: `general` with `intent` retuned from 0.8 to 0.4 for

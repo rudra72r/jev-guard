@@ -10,6 +10,7 @@ import json
 from datetime import datetime, timezone
 from typing import Any
 
+from jev_guard._install import install
 from jev_guard.eval.golden import EvalResult, eval_section
 from jev_guard.eval.metrics import Metrics, add_example, worst_action
 from jev_guard.eval.scan import ScanResult
@@ -386,7 +387,7 @@ def render_html(report: dict[str, Any]) -> str:
 
         raise ConfigurationError(
             "HTML reports need Jinja2.",
-            hint='pip install "jev-guard[cli]", or use --format json / md',
+            hint=f"{install('cli')}, or use --format json / md",
         ) from err
     env = jinja2.Environment(autoescape=True, undefined=jinja2.StrictUndefined)
     ev = report.get("eval")

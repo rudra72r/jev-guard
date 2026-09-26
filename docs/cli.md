@@ -1,7 +1,7 @@
 # Command line
 
 ```bash
-pip install "jev-guard[cli]"
+pip install "jev-guard[cli] @ git+https://github.com/rudra72r/jev-guard"
 jev-guard --help
 ```
 

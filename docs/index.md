@@ -3,7 +3,7 @@
 jev-guard checks what goes into and comes out of your LLM. Each check is one call to TypeSafe's [Jev](https://typesafe.ai) model, which answers typed questions with probabilities in 70–500 ms. A typical input or output check costs about $0.00002.
 
 ```bash
-pip install "jev-guard[local]"
+pip install "jev-guard[local] @ git+https://github.com/rudra72r/jev-guard"
 jev-guard try                    # no key, no config: checks four example messages
 ```
 

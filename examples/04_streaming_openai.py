@@ -1,6 +1,6 @@
 """Example 04: guard a streamed OpenAI response.
 
-    pip install "jev-guard[openai]"
+    pip install "jev-guard[openai] @ git+https://github.com/rudra72r/jev-guard"
     export TYPESAFE_API_KEY=sk-...    # https://console.typesafe.ai/keys
     export OPENAI_API_KEY=sk-...
     python examples/04_streaming_openai.py

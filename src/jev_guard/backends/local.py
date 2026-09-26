@@ -40,6 +40,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any, cast
 
+from jev_guard._install import install
 from jev_guard.client import JevResult, WireQuestions
 from jev_guard.errors import ConfigurationError
 from jev_guard.types import JevAnswer
@@ -178,7 +179,7 @@ def _transformers_pipeline(task: str, model: str) -> Pipeline:
     except ImportError as err:
         raise ConfigurationError(
             "The local backend needs transformers and torch.",
-            hint='pip install "jev-guard[local]"',
+            hint=install("local"),
         ) from err
     _quiet_transformers()
     # `task` is dynamic, so it can't match transformers' per-task overloads; and the import

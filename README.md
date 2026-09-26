@@ -2,8 +2,8 @@
      alt="jev-guard — guardrails for LLM apps, every input and output checked in 70–500 ms"
      width="100%">
 
-[![PyPI](https://img.shields.io/pypi/v/jev-guard?style=flat-square&labelColor=12120F&color=5E5E56)](https://pypi.org/project/jev-guard/)
-[![Python](https://img.shields.io/pypi/pyversions/jev-guard?style=flat-square&labelColor=12120F&color=5E5E56)](https://pypi.org/project/jev-guard/)
+[![Release](https://img.shields.io/github/v/tag/rudra72r/jev-guard?style=flat-square&label=release&labelColor=12120F&color=5E5E56)](https://github.com/rudra72r/jev-guard/releases)
+[![Python](https://img.shields.io/badge/python-3.10%2B-5E5E56?style=flat-square&labelColor=12120F)](https://github.com/rudra72r/jev-guard/blob/main/pyproject.toml)
 [![CI](https://img.shields.io/github/actions/workflow/status/rudra72r/jev-guard/ci.yml?branch=main&style=flat-square&labelColor=12120F&color=5E5E56)](https://github.com/rudra72r/jev-guard/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/badge/coverage-99%25-5E5E56?style=flat-square&labelColor=12120F)](https://github.com/rudra72r/jev-guard/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-MIT-5E5E56?style=flat-square&labelColor=12120F)](https://github.com/rudra72r/jev-guard/blob/main/LICENSE)
@@ -24,7 +24,7 @@ on the offline backend — no account, no key, no cost.</sub>
 ## Install
 
 ```bash
-pip install "jev-guard[local]"
+pip install "jev-guard[local] @ git+https://github.com/rudra72r/jev-guard"
 jev-guard try
 ```
 
@@ -32,8 +32,15 @@ That's the whole setup. No account, no key, no config: `try` picks a backend, ch
 example messages, and prints the three lines of Python to paste into your app. The first run
 downloads about 1.5 GB of models.
 
-Already have a TypeSafe key? `pip install jev-guard` is enough — `try` uses Jev when
-`TYPESAFE_API_KEY` is set, and it's much faster.
+Already have a TypeSafe key? Drop the `[local]` extra — it's much faster, and `try` uses Jev
+whenever `TYPESAFE_API_KEY` is set:
+
+```bash
+pip install "jev-guard[cli] @ git+https://github.com/rudra72r/jev-guard"
+```
+
+> Not on PyPI yet, so installs come from git. Everything else works the same, and each
+> [release](https://github.com/rudra72r/jev-guard/releases) ships a built wheel you can pin.
 
 ```bash
 export TYPESAFE_API_KEY=sk-...          # Jev: fastest and cheapest (console.typesafe.ai/keys)
@@ -239,7 +246,7 @@ so far: about $0.001 per 1,000-token streamed reply. Details in [docs/cost.md](h
 [a LangChain callback](https://github.com/rudra72r/jev-guard/blob/main/docs/recipes/rag-grounding.md) ·
 [a LiteLLM proxy guardrail](https://github.com/rudra72r/jev-guard/blob/main/docs/recipes/litellm-proxy.md) ·
 [streaming with buffer or rollback](https://github.com/rudra72r/jev-guard/blob/main/docs/streaming.md) ·
-a CLI (`pip install "jev-guard[cli]"`) with `check`, `scan`, `eval`, `policy` and `hook`.
+a CLI (the `[cli]` extra) with `check`, `scan`, `eval`, `policy` and `hook`.
 
 ## What this is not
 

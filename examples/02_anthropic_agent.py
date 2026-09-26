@@ -1,6 +1,6 @@
 """Example 02: guard a Claude writing app and a Claude tool-using agent.
 
-    pip install "jev-guard[anthropic]"
+    pip install "jev-guard[anthropic] @ git+https://github.com/rudra72r/jev-guard"
     export TYPESAFE_API_KEY=sk-...    # https://console.typesafe.ai/keys
     export ANTHROPIC_API_KEY=sk-ant-...
     python examples/02_anthropic_agent.py

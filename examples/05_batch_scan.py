@@ -1,6 +1,6 @@
 """Example 05: batch-scan logs from Python (the engine behind `jev-guard scan`).
 
-    pip install "jev-guard[cli]"
+    pip install "jev-guard[cli] @ git+https://github.com/rudra72r/jev-guard"
     python examples/05_batch_scan.py            # estimate only, free
     export TYPESAFE_API_KEY=sk-...              # https://console.typesafe.ai/keys
     python examples/05_batch_scan.py --run      # scans, capped at $0.05

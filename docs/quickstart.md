@@ -5,7 +5,7 @@ About 15 minutes from install to a measured result.
 ## 1. Install and see it work
 
 ```bash
-pip install "jev-guard[local]"
+pip install "jev-guard[local] @ git+https://github.com/rudra72r/jev-guard"
 jev-guard try
 ```
 
@@ -13,8 +13,13 @@ jev-guard try
 messages, and prints the Python to paste into your app. The first run downloads about 1.5 GB
 of models, then each check takes a few seconds on a CPU.
 
-With a TypeSafe key, `pip install "jev-guard[cli]"` and `export TYPESAFE_API_KEY=sk-...` is
-enough, and checks take 70–500 ms instead.
+With a TypeSafe key, swap `[local]` for `[cli]` and `export TYPESAFE_API_KEY=sk-...`;
+checks then take 70–500 ms instead of seconds.
+
+!!! note "Installing from git"
+    jev-guard isn't on PyPI yet, so `pip install jev-guard` won't find it. Every install
+    below uses the git URL, and each [release](https://github.com/rudra72r/jev-guard/releases)
+    also ships a built wheel you can pin.
 
 Keys come from [console.typesafe.ai/keys](https://console.typesafe.ai/keys), the only official source. `Guard()` doesn't ask for one until the first check, so importing jev-guard and inspecting policies works without it.
 

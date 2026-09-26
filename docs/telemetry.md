@@ -1,7 +1,7 @@
 # Telemetry
 
 ```bash
-pip install "jev-guard[otel]"
+pip install "jev-guard[otel] @ git+https://github.com/rudra72r/jev-guard"
 ```
 
 ```python

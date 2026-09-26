@@ -25,6 +25,7 @@ if TYPE_CHECKING:  # the SDK costs ~0.6s to import; load it only when Jev is act
         TypeSafeError,
     )
 
+from jev_guard._install import install
 from jev_guard.errors import (
     ConfigurationError,
     JevAPIError,
@@ -114,8 +115,7 @@ class JevClient:
                 # out: this is the first error most new users will ever see.
                 hint=(
                     f"Set {API_KEY_ENV} (https://console.typesafe.ai/keys), or run with no "
-                    'account at all: pip install "jev-guard[local]" and set '
-                    "JEV_GUARD_BACKEND=local."
+                    f"account at all: {install('local')} and set JEV_GUARD_BACKEND=local."
                 ),
             )
         return key

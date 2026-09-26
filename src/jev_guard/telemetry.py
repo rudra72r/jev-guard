@@ -22,6 +22,8 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from jev_guard._install import install
+
 if TYPE_CHECKING:
     from jev_guard.policies.base import Policy
     from jev_guard.types import GuardStage, Verdict
@@ -63,7 +65,7 @@ def setup_telemetry(tracer_provider: Any | None = None) -> bool:
         from opentelemetry import trace  # noqa: PLC0415 (optional dependency)
     except ImportError:
         sys.stderr.write(
-            'jev-guard telemetry needs OpenTelemetry.\n  next step: pip install "jev-guard[otel]"\n'
+            f"jev-guard telemetry needs OpenTelemetry.\n  next step: {install('otel')}\n"
         )
         return False
     from jev_guard import __version__  # noqa: PLC0415 (import cycle)

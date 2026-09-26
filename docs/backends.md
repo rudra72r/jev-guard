@@ -22,7 +22,7 @@ jev-guard --backend local eval
 | backend | spec | needs | speed | cost | notes |
 |---|---|---|---|---|---|
 | **Jev** (default) | `jev`, `jev:jev-1.13.0` | `TYPESAFE_API_KEY` | 70–500 ms | $0.042 / 1M tokens | Best quality per millisecond. Doesn't generate text, so it can't be talked into ignoring its instructions. |
-| **Local** | `local`, `local:MODEL` | `pip install "jev-guard[local]"` | ~7 s per check on a 4-thread CPU, after a one-time ~23 s model load (measured); much faster on GPU | free | Fully offline and private. Less nuanced. |
+| **Local** | `local`, `local:MODEL` | the `[local]` extra | ~7 s per check on a 4-thread CPU, after a one-time ~23 s model load (measured); much faster on GPU | free | Fully offline and private. Less nuanced. |
 | **LLM judge** | `openai:MODEL`, `ollama:MODEL`, `openai-compatible:MODEL@URL`, `anthropic:MODEL` | that provider's key (none for local servers) | 0.3–3 s | the model's price | Works with any OpenAI-compatible server: Ollama, vLLM, LM Studio, llama.cpp, OpenRouter. |
 | **Jev via Cloudflare** | `cloudflare` | `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN` | same as Jev | Cloudflare's price | The same model, billed to Cloudflare. **No TypeSafe account needed**, which matters while TypeSafe signups are closed. |
 | **Fallback** | `jev,local` | — | — | — | Tries each in turn when one is unreachable, throttled, or has no key. |
@@ -33,7 +33,7 @@ Everything gets an in-memory cache, and Jev gets client-side rate limiting (see
 ## Offline and private
 
 ```bash
-pip install "jev-guard[local]"
+pip install "jev-guard[local] @ git+https://github.com/rudra72r/jev-guard"
 export JEV_GUARD_BACKEND=local
 ```
 

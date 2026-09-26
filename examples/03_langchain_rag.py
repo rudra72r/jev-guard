@@ -1,6 +1,7 @@
 """Example 03: grounding checks on a LangChain RAG chain.
 
-    pip install "jev-guard[langchain]" langchain-anthropic
+    pip install "jev-guard[langchain] @ git+https://github.com/rudra72r/jev-guard"
+    pip install langchain-anthropic
     export TYPESAFE_API_KEY=sk-...    # https://console.typesafe.ai/keys
     export ANTHROPIC_API_KEY=sk-ant-...
     python examples/03_langchain_rag.py

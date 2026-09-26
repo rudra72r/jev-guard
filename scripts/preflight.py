@@ -235,12 +235,7 @@ def main() -> int:
     print(f"\n{GREEN}{BOLD}Ready to publish.{OFF} To release {tag}, one line at a time:\n")
     for step, comment in (
         ("git push origin main", "CI must be green"),
-        (
-            "gh repo edit rudra72r/jev-guard --visibility public"
-            " --accept-visibility-change-consequences",
-            "gh refuses --visibility without that flag",
-        ),
-        (f"git push origin {tag}", "fires publish.yml"),
+        (f"git push origin {tag}", "builds and attaches the wheel to a GitHub Release"),
     ):
         # A command longer than the column gets its note on the line above, so the command
         # stays on one unbroken line the user can copy.
@@ -248,7 +243,7 @@ def main() -> int:
             print(f"  {DIM}# {comment}{OFF}\n  {step}")
         else:
             print(f"  {step:<52}{DIM}# {comment}{OFF}")
-    print(f"\n  {DIM}PyPI trusted publishing must be configured first — see notes/LAUNCH.md.{OFF}")
+    print(f"\n  {DIM}Not on PyPI: installs come from git. notes/LAUNCH.md has the rest.{OFF}")
     return 0
 
 

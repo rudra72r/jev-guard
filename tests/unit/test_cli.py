@@ -11,6 +11,7 @@ from typer.testing import CliRunner
 import jev_guard._cli_app as cli_app
 from jev_guard import cli
 from jev_guard._cli_app import app
+from jev_guard._install import install
 from jev_guard.errors import JevAPIError, JevAuthenticationError
 
 runner = CliRunner()
@@ -146,7 +147,7 @@ def test_error_hints_keep_their_square_brackets(monkeypatch):
     monkeypatch.delenv("JEV_GUARD_BACKEND", raising=False)
     result = runner.invoke(app, ["check", "hello"])
     assert result.exit_code == 1
-    assert 'pip install "jev-guard[local]"' in result.output
+    assert install("local") in result.output
     assert "JEV_GUARD_BACKEND=local" in result.output
 
 
@@ -223,7 +224,7 @@ def test_entry_point_without_cli_extra(monkeypatch, capsys):
     with pytest.raises(SystemExit) as info:
         cli.main()
     assert info.value.code == 1
-    assert 'pip install "jev-guard[cli]"' in capsys.readouterr().err
+    assert install("cli") in capsys.readouterr().err
 
 
 def test_entry_point_reraises_unrelated_import_errors(monkeypatch):
@@ -266,7 +267,7 @@ def test_try_without_a_key_or_local_extra_says_exactly_what_to_install(monkeypat
     monkeypatch.setattr(cli_app.importlib.util, "find_spec", lambda name: None)
     result = runner.invoke(app, ["try"])
     assert result.exit_code == 1
-    assert 'pip install "jev-guard[local]"' in result.output
+    assert install("local") in result.output
 
 
 def test_try_picks_local_and_its_calibrated_policy(monkeypatch):

@@ -7,7 +7,7 @@ into Claude Code's tool hooks with one command.
 ## Set it up
 
 ```bash
-pip install "jev-guard[cli]"
+pip install "jev-guard[cli] @ git+https://github.com/rudra72r/jev-guard"
 export TYPESAFE_API_KEY=sk-...   # see "Backend" below before choosing something else
 ```
 
